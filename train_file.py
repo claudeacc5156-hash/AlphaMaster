@@ -92,6 +92,8 @@ def train_from_file(data_file: str, *, from_scratch: bool = False) -> AlphaEngin
         try:
             start_step = engine.load_checkpoint(latest)
             print(f"  [续训] 从 {latest} 恢复，起始步={start_step}")
+            # 检查点每 20 步才写一次；Stop 后 best_*.json 可能含检查点之后的更优公式
+            _seed_best_from_strategy(engine, symbol)
         except Exception as e:
             print(f"  [警告] 检查点加载失败: {e}，将从头开始")
 
@@ -147,12 +149,16 @@ def _seed_best_from_strategy(engine: AlphaEngine, symbol: str) -> None:
         return
     old_tf = data.get("timeframe")
     if old_tf and old_tf != engine.timeframe:
-        print(f"  [重新训练] 已有策略属于 {old_tf} 周期，不作为 {engine.timeframe} 的分数下限")
+        print(f"  [策略] 已有策略属于 {old_tf} 周期，不作为 {engine.timeframe} 的分数下限")
+        return
+    if data.get("vocab_version") not in (None, VOCAB_VERSION):
         return
     try:
+        if float(score) <= float(engine.best_score):
+            return
         engine.best_formula = [int(t) for t in formula]
         engine.best_score = float(score)
-        print(f"  [重新训练] 保留已有最优分数下限={engine.best_score:.4f}，仅更好时才会覆盖策略文件")
+        print(f"  [策略] 保留已有最优分数下限={engine.best_score:.4f}，仅更好时才会覆盖策略文件")
     except (TypeError, ValueError) as e:
         print(f"  [警告] 已有策略无法用作下限: {e}")
 
