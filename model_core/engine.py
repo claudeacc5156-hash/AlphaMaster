@@ -578,7 +578,9 @@ class AlphaEngine:
         pool_vecs_list = []
         for _, _cnt, pf in self.factor_pool:
             pf_t = pf.detach()
-            if train_slice is not None and pf_t.shape[1] >= factor.shape[1]:
+            if pf_t.shape != factor.shape:
+                continue  # 来自其他数据集（如数据更新后续训），形状不一致，跳过
+            if train_slice is not None:
                 pf_t = pf_t[:, s:e]
             pool_vecs_list.append(pf_t.reshape(-1).float())
         if not pool_vecs_list:
