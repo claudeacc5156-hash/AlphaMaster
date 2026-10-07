@@ -441,19 +441,21 @@ class AlphaEngine:
     @staticmethod
     def _compute_ic(factor: torch.Tensor, target_ret: torch.Tensor
                     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """时序 IC（每品种内部 factor[t] vs ret[t+1]）的均值与稳定性。
+        """时序 IC（每品种内部 factor[t] vs target_ret[t]）的均值与稳定性。
 
+        target_ret[t] = log(open[t+2]/open[t+1]) 已是 position[t] 实际交易的
+        前向收益（与 PnL 对齐），故同索引配对；末端 2 根为 0 填充，需裁掉。
         对 5 品种宇宙，时序 IC 比横截面 IC 统计意义更强。
         """
         N, T = factor.shape
-        if T < 2:
+        if T < 3:
             z = torch.zeros(1, device=factor.device)
             return z, z
 
         ic_list = []
         for n in range(N):
-            x  = factor[n, :-1]
-            y  = target_ret[n, 1:]
+            x  = factor[n, :-2]
+            y  = target_ret[n, :-2]
             xm = x - x.mean()
             ym = y - y.mean()
             sx = (xm ** 2).mean().sqrt()
