@@ -488,10 +488,13 @@ class AlphaEngine:
         ic_val = ic_mean.item() if isinstance(ic_mean, torch.Tensor) else float(ic_mean)
         t = ModelConfig.IC_GATE_THRESH
         if ic_val > t:
-            return reward * ModelConfig.IC_GATE_MULT
+            m = ModelConfig.IC_GATE_MULT
         elif ic_val < -t:
-            return reward * ModelConfig.IC_NEG_MULT
-        return reward
+            m = ModelConfig.IC_NEG_MULT
+        else:
+            return reward
+        # 符号感知：负 reward 时奖励应变得不那么负、惩罚应更负
+        return reward - abs(reward) * (1.0 - m)
 
 
     # ── Elite pool ────────────────────────────────────────────────────────────
@@ -588,7 +591,7 @@ class AlphaEngine:
         sy   = p_c.norm(dim=1) + 1e-8
         corr = (cov / (sx * sy)).abs()
         if (corr > ModelConfig.CORR_THRESHOLD).any():
-            reward = reward * ModelConfig.CORR_PENALTY
+            reward = reward - abs(reward) * (1.0 - ModelConfig.CORR_PENALTY)
         return reward
 
     def _distribution_stats(self, prev_dist=None):

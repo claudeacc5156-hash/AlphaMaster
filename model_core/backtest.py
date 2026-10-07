@@ -458,7 +458,8 @@ class MT5Backtest:
         else:
             # OOS盈利：轻奖励（最多+20%）
             mult = min(1.2, 1.0 + oos_sor * 0.1)
-        val_score = base_val * mult
+        # 符号感知：负分时 mult<1 必须更负、mult>1 更不负，否则门控会奖励 OOS 亏损
+        val_score = base_val - base_val.abs() * (1.0 - mult)
 
         return train_score, val_score
 
@@ -658,9 +659,9 @@ class MT5Backtest:
         oos_sor = self._sortino(pnl_oos).item()
         if oos_sor <= 0:
             mult = max(0.1, 0.5 + oos_sor * 0.4)
-            score = score * mult
         else:
-            score = score * min(1.2, 1.0 + oos_sor * 0.1)
+            mult = min(1.2, 1.0 + oos_sor * 0.1)
+        score = score - score.abs() * (1.0 - mult)
 
         mean_oos = pnl_oos.mean().item()
         return score, mean_oos
