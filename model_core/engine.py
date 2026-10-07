@@ -1298,6 +1298,7 @@ class AlphaEngine:
         ckpt = {
             "step":                 step,
             "vocab_version":        VOCAB_VERSION,   # task 12.2: 版本校验所需
+            "timeframe":            getattr(self, "timeframe", None),
             "model_state_dict":     self.model.state_dict(),
             "optimizer_state_dict": self.opt.state_dict(),
             "best_score":           self.best_score,

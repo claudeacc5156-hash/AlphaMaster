@@ -84,6 +84,11 @@ def train_from_file(data_file: str, *, from_scratch: bool = False) -> AlphaEngin
         ckpt_files = []
     elif ckpt_files:
         latest = ckpt_files[-1]
+        prev_tf = _recorded_timeframe(latest, symbol)
+        if prev_tf and prev_tf != timeframe:
+            print(f"  [错误] {symbol} 现有检查点属于 {prev_tf} 周期，与当前 {timeframe} 不一致，不能续训")
+            print("  请点「重新训练」（--from-scratch）从头训练该周期")
+            return None
         try:
             start_step = engine.load_checkpoint(latest)
             print(f"  [续训] 从 {latest} 恢复，起始步={start_step}")
@@ -109,6 +114,23 @@ def train_from_file(data_file: str, *, from_scratch: bool = False) -> AlphaEngin
     return engine
 
 
+def _recorded_timeframe(ckpt_path: str, symbol: str) -> str | None:
+    """检查点所属周期；旧检查点无此字段时回退到 best_{symbol}.json 记录的周期。"""
+    try:
+        import torch
+
+        tf = torch.load(ckpt_path, map_location="cpu", weights_only=True).get("timeframe")
+        if tf:
+            return tf
+    except Exception:
+        pass
+    try:
+        path = pathlib.Path("strategies") / f"best_{symbol}.json"
+        return json.loads(path.read_text(encoding="utf-8")).get("timeframe")
+    except Exception:
+        return None
+
+
 def _seed_best_from_strategy(engine: AlphaEngine, symbol: str) -> None:
     """把已有 best_{symbol}.json 当作重新训练的分数下限。"""
     path = pathlib.Path("strategies") / f"best_{symbol}.json"
@@ -122,6 +144,10 @@ def _seed_best_from_strategy(engine: AlphaEngine, symbol: str) -> None:
     formula = data.get("formula")
     score = data.get("best_score")
     if not formula or score is None:
+        return
+    old_tf = data.get("timeframe")
+    if old_tf and old_tf != engine.timeframe:
+        print(f"  [重新训练] 已有策略属于 {old_tf} 周期，不作为 {engine.timeframe} 的分数下限")
         return
     try:
         engine.best_formula = [int(t) for t in formula]
@@ -139,7 +165,11 @@ def _save_strategy(engine: AlphaEngine, symbol: str, timeframe: str, data_file: 
         try:
             old = json.loads(path.read_text(encoding="utf-8"))
             old_score = old.get("best_score")
-            if old_score is not None and float(old_score) > float(engine.best_score):
+            if (
+                old_score is not None
+                and old.get("timeframe") in (None, timeframe)
+                and float(old_score) > float(engine.best_score)
+            ):
                 print(
                     f"  [策略] 保留磁盘更优结果 {float(old_score):.4f} "
                     f"> 本次 {float(engine.best_score):.4f}，未覆盖 {path}"
