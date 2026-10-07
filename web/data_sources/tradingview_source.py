@@ -111,7 +111,12 @@ class TradingViewSource(DataSource):
         bars: list[Bar] = []
         for row in rows:
             dt = row.Index
-            ts = int(dt.timestamp()) if hasattr(dt, "timestamp") else 0
+            if hasattr(dt, "tzinfo") and dt.tzinfo is None and hasattr(dt, "to_pydatetime"):
+                # tvDatafeed 用 datetime.fromtimestamp 生成本地时间（无时区）；
+                # pandas 会把无时区时间当 UTC，导致按本机时区偏移。按本地时间换算。
+                ts = int(dt.to_pydatetime().timestamp())
+            else:
+                ts = int(dt.timestamp()) if hasattr(dt, "timestamp") else 0
             bars.append(
                 Bar(
                     ts=ts,
