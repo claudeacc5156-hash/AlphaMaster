@@ -188,6 +188,18 @@ class ParquetDataManager:
             )
 
         sub = sub.sort_values("time")
+        # 丢弃 OHLC/时间缺失的行（如 resample 产生的周末空 K 线），
+        # 否则 target_ret 含 NaN，训练奖励/权重与回测指标全部变 NaN。
+        n_before = len(sub)
+        sub = sub.dropna(subset=["time", "open", "high", "low", "close"])
+        if len(sub) < n_before:
+            logger.warning(
+                f"[数据] {self.file_path.name} 已丢弃 {n_before - len(sub)} 行 OHLC 缺失(NaN)的K线"
+            )
+            if len(sub) < Config.MIN_BARS:
+                raise ValueError(
+                    f"数据不足: 去除空值后仅 {len(sub)} bars（至少需要 {Config.MIN_BARS}）"
+                )
         sub = sub[~sub["time"].duplicated(keep="last")]
 
         rows = {field: sub[field].values for field in ["open", "high", "low", "close", "volume"]}
