@@ -1014,6 +1014,17 @@ def _startup_realtime() -> None:
         log_error("realtime load_persisted failed", exc)
 
 
+@app.on_event("shutdown")
+def _shutdown_subprocesses() -> None:
+    # Windows 下训练/回测子进程在独立进程组，收不到控制台的 Ctrl+C；
+    # 控制台退出时主动结束它们，避免后台残留进程继续写检查点。
+    for mgr in (training_manager, backtest_manager):
+        try:
+            mgr.stop()
+        except Exception as exc:  # noqa: BLE001
+            log_error("shutdown stop subprocess failed", exc)
+
+
 @app.get("/api/realtime/sources")
 def api_realtime_sources() -> dict[str, Any]:
     return {"sources": list_sources(), "min_exposure": min_exposure()}
