@@ -353,3 +353,22 @@ def test_ic_arithmetic_consistency(N: int, T: int) -> None:
             f"ic_stability={ic_stability.item():.6f} != "
             f"expected={expected_stability.item():.6f}"
         )
+
+
+
+def test_ic_alignment_perfect_foresight() -> None:
+    """A factor equal to the return its position trades has IC ~ 1, and the
+    same factor shifted by one bar has IC ~ 0. Catches index misalignment
+    between factor[t] and target_ret[t]."""
+    from model_core.engine import AlphaEngine
+
+    torch.manual_seed(0)
+    T = 500
+    ret = torch.randn(1, T)
+    ret[:, -2:] = 0.0  # tail padding, as in _compute_target_ret
+
+    ic_same, _ = AlphaEngine._compute_ic(ret.clone(), ret)
+    assert ic_same.item() > 0.99
+
+    ic_shifted, _ = AlphaEngine._compute_ic(torch.roll(ret, 1, dims=1), ret)
+    assert abs(ic_shifted.item()) < 0.15

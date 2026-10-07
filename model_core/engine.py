@@ -481,9 +481,10 @@ class AlphaEngine:
     @staticmethod
     def _apply_ic_gate(reward: torch.Tensor, ic_mean) -> torch.Tensor:
         """IC 门控：用 IC 符号而非量值调整 reward，完全规避量纲问题。
-        IC > thresh  → reward × IC_GATE_MULT  (正向预测，奖励)
-        IC < -thresh → reward × IC_NEG_MULT   (反向预测，惩罚)
-        |IC| ≤ thresh→ 不修改                  (噪声区)
+        IC > thresh  → 按 IC_GATE_MULT 奖励  (正向预测)
+        IC < -thresh → 按 IC_NEG_MULT 惩罚   (反向预测)
+        |IC| ≤ thresh→ 不修改                (噪声区)
+        调整量为 |reward| × (m - 1)，正负 reward 下方向一致（不是直接 reward × m）。
         """
         ic_val = ic_mean.item() if isinstance(ic_mean, torch.Tensor) else float(ic_mean)
         t = ModelConfig.IC_GATE_THRESH
