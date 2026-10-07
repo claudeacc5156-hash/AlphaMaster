@@ -1309,7 +1309,7 @@ class AlphaEngine:
         return path
 
     def load_checkpoint(self, path: str) -> int:
-        ckpt = torch.load(path, map_location=ModelConfig.DEVICE)
+        ckpt = torch.load(path, map_location=ModelConfig.DEVICE, weights_only=True)
 
         # ── Task 12.2：版本校验（R3.7）──────────────────────────────────────
         # 从 checkpoint 读取 vocab_version；若字段缺失（旧版 checkpoint），视为

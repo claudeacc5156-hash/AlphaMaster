@@ -34,7 +34,7 @@ def _symbol_from_ckpt_name(name: str) -> str | None:
 
 
 def _validate_checkpoint_file(path: Path) -> dict[str, Any]:
-    ckpt = torch.load(path, map_location="cpu", weights_only=False)
+    ckpt = torch.load(path, map_location="cpu", weights_only=True)
     artifact_version = ckpt.get("vocab_version")
     if artifact_version is None:
         raise ValueError(
@@ -154,20 +154,36 @@ def _import_zip(content: bytes, expected_symbol: str | None) -> dict[str, Any]:
                 f"训练包品种为 {symbol}，与当前选择的 {expected_symbol} 不一致"
             )
 
+        # 只接受导出时会写入的文件，且必须落在项目目录内（防 zip 路径穿越覆盖任意文件）
+        if any(c in symbol for c in "/\\") or ".." in symbol:
+            raise ValueError(f"训练包品种名非法: {symbol!r}")
+        root = PROJECT_ROOT.resolve()
+        allowed = {f"strategies/best_{symbol}.json", f"training_history_{symbol}.json"}
+        members = [m for m in names if m != "manifest.json"]
+        for member in members:
+            ckpt_name = member[len("checkpoints/"):] if member.startswith("checkpoints/") else ""
+            ok_name = member in allowed or (
+                bool(_CKPT_NAME_RE.match(ckpt_name)) and not re.search(r"[\\/]", ckpt_name)
+            )
+            if not ok_name or not (root / member).resolve().is_relative_to(root):
+                raise ValueError(f"训练包含不允许的文件: {member}")
+
         _remove_symbol_checkpoints(symbol)
         installed: list[str] = []
         imported_history = False
 
-        for member in names:
-            if member == "manifest.json":
-                continue
+        for member in members:
             dest = PROJECT_ROOT / member.replace("/", "\\") if "\\" in str(PROJECT_ROOT) else PROJECT_ROOT / member
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_bytes(zf.read(member))
             installed.append(str(dest.relative_to(PROJECT_ROOT)).replace("\\", "/"))
 
             if member.endswith(".pt"):
-                _validate_checkpoint_file(dest)
+                try:
+                    _validate_checkpoint_file(dest)
+                except Exception:
+                    dest.unlink(missing_ok=True)
+                    raise
             if member == f"training_history_{symbol}.json":
                 imported_history = True
 
@@ -207,7 +223,11 @@ def _import_pt(content: bytes, filename: str, expected_symbol: str | None) -> di
 
     _remove_symbol_checkpoints(symbol)
     dest.write_bytes(content)
-    meta = _validate_checkpoint_file(dest)
+    try:
+        meta = _validate_checkpoint_file(dest)
+    except Exception:
+        dest.unlink(missing_ok=True)
+        raise
 
     return {
         "symbol": symbol,

@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 import traceback
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -60,10 +62,36 @@ logger = get_logger()
 app = FastAPI(title="AlphaMaster Training", version="1.1.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origin_regex=r"^https?://(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$",
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 仅允许本机访问。CORS 只限制「读取响应」，挡不住跨站表单 POST（如上传恶意训练包），
+# 也挡不住 DNS 重绑定；因此同时校验 Host 与 Origin。局域网访问可用环境变量
+# ALPHAMASTER_ALLOWED_HOSTS=192.168.1.10,mypc 追加主机名。
+_ALLOWED_HOSTS = {"127.0.0.1", "localhost", "::1"} | {
+    h.strip().lower()
+    for h in os.environ.get("ALPHAMASTER_ALLOWED_HOSTS", "").split(",")
+    if h.strip()
+}
+
+
+def _hostname(value: str) -> str:
+    try:
+        return (urlsplit(value if "//" in value else "//" + value).hostname or "").lower()
+    except ValueError:
+        return ""
+
+
+@app.middleware("http")
+async def _local_only(request: Request, call_next):
+    origin = request.headers.get("origin")
+    if _hostname(request.headers.get("host", "")) not in _ALLOWED_HOSTS or (
+        origin is not None and _hostname(origin) not in _ALLOWED_HOSTS
+    ):
+        return JSONResponse({"detail": "仅允许本机访问"}, status_code=403)
+    return await call_next(request)
 
 
 class StartTrainingRequest(BaseModel):
