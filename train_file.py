@@ -25,6 +25,7 @@ from config import Config
 from data_pipeline.parquet_manager import ParquetDataManager, inspect_parquet_file
 from model_core.config import ModelConfig
 from model_core.engine import AlphaEngine
+from model_core.backtest import SCORE_VERSION
 from model_core.vocab import VOCAB_VERSION
 
 
@@ -153,6 +154,9 @@ def _seed_best_from_strategy(engine: AlphaEngine, symbol: str) -> None:
         return
     if data.get("vocab_version") not in (None, VOCAB_VERSION):
         return
+    if data.get("score_version") != SCORE_VERSION:
+        print("  [策略] 已有策略按旧评分口径打分，不作为分数下限")
+        return
     try:
         if float(score) <= float(engine.best_score):
             return
@@ -166,14 +170,18 @@ def _seed_best_from_strategy(engine: AlphaEngine, symbol: str) -> None:
 def _save_strategy(engine: AlphaEngine, symbol: str, timeframe: str, data_file: str) -> None:
     path = pathlib.Path("strategies") / f"best_{symbol}.json"
     path.parent.mkdir(exist_ok=True)
-    # 若磁盘上已有更高分，不要用更弱结果覆盖
-    if path.exists() and engine.best_formula is not None:
+    if engine.best_formula is None:
+        print("  [策略] 本次训练没有产生有效公式，保留原策略文件")
+        return
+    # 若磁盘上已有更高分（同一周期、同一评分口径），不要用更弱结果覆盖
+    if path.exists():
         try:
             old = json.loads(path.read_text(encoding="utf-8"))
             old_score = old.get("best_score")
             if (
                 old_score is not None
                 and old.get("timeframe") in (None, timeframe)
+                and old.get("score_version") == SCORE_VERSION
                 and float(old_score) > float(engine.best_score)
             ):
                 print(
@@ -200,6 +208,7 @@ def _save_strategy(engine: AlphaEngine, symbol: str, timeframe: str, data_file: 
             pass
     data = {
         "vocab_version": VOCAB_VERSION,
+        "score_version": SCORE_VERSION,
         "symbol": symbol,
         "timeframe": timeframe,
         "data_file": str(Path(data_file).resolve()),

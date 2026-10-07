@@ -30,7 +30,7 @@ from tqdm import tqdm
 from .config import ModelConfig
 from .alphagpt import AlphaGPT, NewtonSchulzLowRankDecay, StableRankMonitor
 from .vm import StackVM
-from .backtest import MT5Backtest, estimate_periods_per_year
+from .backtest import SCORE_VERSION, MT5Backtest, estimate_periods_per_year
 from .vocab import FORMULA_VOCAB, VOCAB_VERSION, VocabVersionMismatchError  # task 12.2
 
 # P3：冠军在场时间稳健性校验所需
@@ -1149,21 +1149,8 @@ class AlphaEngine:
         # ── End of training ──────────────────────────────────────────
         # 仅当跑满最终步时才保存最终 strategy 和历史
         if end_step == ModelConfig.TRAIN_STEPS:
-            if self.best_formula is not None:
-                from .vocab import VOCAB_VERSION
-                strategy_data = {
-                    "vocab_version": VOCAB_VERSION,
-                    "symbol": self.target_symbol,
-                    "formula": self.best_formula,
-                    "best_score": self.best_score,
-                }
-                save_path = _strategy_file_for_symbol(self.target_symbol)
-                pathlib.Path(save_path).parent.mkdir(parents=True, exist_ok=True)
-                # P1-3: 原子写入
-                tmp_path = save_path + ".tmp"
-                with open(tmp_path, "w", encoding="utf-8") as fp:
-                    json.dump(strategy_data, fp, indent=2, ensure_ascii=False)
-                os.replace(tmp_path, save_path)
+            # 与实时保存同一路径：原子写入并保留周期/数据路径等元数据
+            self._save_strategy_live()
 
             sym_tag = f"[{self.target_symbol}] " if self.target_symbol else ""
             self.training_history.pop('_low_entropy_streak', None)
@@ -1186,7 +1173,7 @@ class AlphaEngine:
             print(f"  自适应噪声   : 启用={ModelConfig.ADAPTIVE_NOISE}，范围=[{ModelConfig.NOISE_MIN}, {ModelConfig.NOISE_MAX}]")
             print(f"  部分层重置   : 启用={ModelConfig.PARTIAL_RESET}，层={ModelConfig.PARTIAL_RESET_LAYERS}")
             print(f"  重启次数     : {self._restart_count}")
-            print(f"  策略已保存   : {save_path}")
+            print(f"  策略已保存   : {_strategy_file_for_symbol(self.target_symbol)}")
 
 
     # ── 实时保存最优公式（防进程意外退出丢失）────────────────────────────────
@@ -1242,6 +1229,7 @@ class AlphaEngine:
 
             strategy_data = {
                 "vocab_version": VOCAB_VERSION,
+                "score_version": SCORE_VERSION,
                 "symbol": self.target_symbol,
                 "formula": self.best_formula,
                 "best_score": self.best_score,
@@ -1286,6 +1274,7 @@ class AlphaEngine:
             "step":                 step,
             "vocab_version":        VOCAB_VERSION,   # task 12.2: 版本校验所需
             "timeframe":            getattr(self, "timeframe", None),
+            "score_version":        SCORE_VERSION,
             "model_state_dict":     self.model.state_dict(),
             "optimizer_state_dict": self.opt.state_dict(),
             "best_score":           self.best_score,
@@ -1336,6 +1325,15 @@ class AlphaEngine:
         self._restart_count      = ckpt.get("restart_count", 0)
         for k, v in ckpt.get("training_history", {}).items():
             self.training_history[k] = v
+
+        # 旧评分口径的检查点：保留模型权重，但最优分/因子池/精英池按新口径从零累积
+        if ckpt.get("score_version") != SCORE_VERSION:
+            self.best_score = -float('inf')
+            self.best_formula = None
+            self._best_snapshot = None
+            self.factor_pool = []
+            self._elite_pool = []
+            tqdm.write("[检查点] 评分口径已更新，旧最优分数不再作为门槛，最优公式将重新累积")
 
         # 清理 elite pool 中的重复条目（保留各公式的最高分版本）
         self._elite_pool = self._dedup_elite_pool(self._elite_pool)

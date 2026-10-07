@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from data_pipeline.parquet_manager import inspect_parquet_file
+from model_core.backtest import SCORE_VERSION
 from model_core.vocab import VOCAB_VERSION
 from web.progress import (
     STRATEGIES_DIR,
@@ -196,8 +197,12 @@ def sync_best_strategy_for_symbol(
     """在策略文件与检查点中选出最高分策略，写入 strategies/best_{symbol}.json。"""
     candidates: list[tuple[float, list[int], int]] = []
 
+    # 只比较当前评分口径下的分数；旧口径分数尺度不同，取 max 会选错公式
     strat = _load_strategy(symbol)
-    if strat and strat.get("formula") and strat.get("best_score") is not None:
+    if (
+        strat and strat.get("formula") and strat.get("best_score") is not None
+        and strat.get("score_version") == SCORE_VERSION
+    ):
         step = int(strat.get("train_step") or strat.get("current_step") or 0)
         candidates.append((float(strat["best_score"]), strat["formula"], step))
 
@@ -205,7 +210,7 @@ def sync_best_strategy_for_symbol(
         meta = _load_checkpoint_meta(ckpt_path)
         score = meta.get("best_score")
         formula = meta.get("best_formula")
-        if score is None or not formula:
+        if score is None or not formula or meta.get("score_version") != SCORE_VERSION:
             continue
         candidates.append((float(score), formula, int(meta.get("step") or 0)))
 
@@ -217,7 +222,7 @@ def sync_best_strategy_for_symbol(
             continue
         formula = data.get("formula")
         score = data.get("best_score")
-        if not formula or score is None:
+        if not formula or score is None or data.get("score_version") != SCORE_VERSION:
             continue
         candidates.append((float(score), formula, _step_from_export_name(path)))
 
@@ -232,6 +237,7 @@ def sync_best_strategy_for_symbol(
     out_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "vocab_version": VOCAB_VERSION,
+        "score_version": SCORE_VERSION,
         "symbol": symbol,
         "formula": best_formula,
         "best_score": best_score,

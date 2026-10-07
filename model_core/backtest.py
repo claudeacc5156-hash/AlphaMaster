@@ -25,6 +25,10 @@ from strategy_manager.signal import compute_target_positions_stateless
 from .config import ModelConfig
 
 _H1_PERIODS_PER_YEAR = 6240
+
+# 评分口径版本。IC 对齐与符号感知门控（2026-10）改变了分数尺度，
+# 旧版本保存的 best_score 不可再与新分数比较（否则旧高分永远压住新公式）。
+SCORE_VERSION = 2
 _SORTINO_CLIP        = 20.0
 
 _SECONDS_PER_YEAR = 365.25 * 86400.0
