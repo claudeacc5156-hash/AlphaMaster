@@ -209,13 +209,14 @@ class ParquetDataManager:
             )
 
         sub = sub.sort_values("time")
-        # 丢弃 OHLC/时间缺失的行（如 resample 产生的周末空 K 线），
-        # 否则 target_ret 含 NaN，训练奖励/权重与回测指标全部变 NaN。
+        # 丢弃 OHLC/时间缺失或价格 ≤ 0 的行（如 resample 产生的周末空 K 线，
+        # 或用 0 填充的空 K 线），否则 target_ret 含 NaN/inf，训练奖励/权重与回测指标全部失效。
         n_before = len(sub)
         sub = sub.dropna(subset=["time", "open", "high", "low", "close"])
+        sub = sub[(sub[["open", "high", "low", "close"]] > 0).all(axis=1)]
         if len(sub) < n_before:
             logger.warning(
-                f"[数据] {self.file_path.name} 已丢弃 {n_before - len(sub)} 行 OHLC 缺失(NaN)的K线"
+                f"[数据] {self.file_path.name} 已丢弃 {n_before - len(sub)} 行 OHLC 缺失或非正价格的K线"
             )
             if len(sub) < Config.MIN_BARS:
                 raise ValueError(
