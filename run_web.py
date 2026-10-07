@@ -21,6 +21,13 @@ from web.settings import load_settings
 
 
 def main() -> None:
+    # Windows 下输出被重定向（管道/日志文件）时默认 cp1252 编码，打印中文会抛 UnicodeEncodeError
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+
     parser = argparse.ArgumentParser(description="AlphaMaster Training Web UI")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
