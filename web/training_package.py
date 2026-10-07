@@ -33,12 +33,14 @@ def _symbol_from_ckpt_name(name: str) -> str | None:
     return m.group(1) if m else None
 
 
-def _validate_checkpoint_file(path: Path) -> dict[str, Any]:
-    ckpt = torch.load(path, map_location="cpu", weights_only=True)
+def _validate_checkpoint_file(path: Path | bytes) -> dict[str, Any]:
+    src = io.BytesIO(path) if isinstance(path, bytes) else path
+    name = "检查点" if isinstance(path, bytes) else path.name
+    ckpt = torch.load(src, map_location="cpu", weights_only=True)
     artifact_version = ckpt.get("vocab_version")
     if artifact_version is None:
         raise ValueError(
-            f"检查点 {path.name} 过旧（无 vocab_version），"
+            f"检查点 {name} 过旧（无 vocab_version），"
             f"当前词表 {FORMULA_VOCAB.version!r}，请重新训练"
         )
     FORMULA_VOCAB.verify(artifact_version)
@@ -162,11 +164,18 @@ def _import_zip(content: bytes, expected_symbol: str | None) -> dict[str, Any]:
         members = [m for m in names if m != "manifest.json"]
         for member in members:
             ckpt_name = member[len("checkpoints/"):] if member.startswith("checkpoints/") else ""
+            m = _CKPT_NAME_RE.fullmatch(ckpt_name)
             ok_name = member in allowed or (
-                bool(_CKPT_NAME_RE.match(ckpt_name)) and not re.search(r"[\\/]", ckpt_name)
+                m is not None
+                and ckpt_name.endswith(".pt")
+                and m.group(1) in (symbol, symbol.replace(".", "_"))
+                and not re.search(r"[\\/]", ckpt_name)
             )
             if not ok_name or not (root / member).resolve().is_relative_to(root):
                 raise ValueError(f"训练包含不允许的文件: {member}")
+        for member in members:
+            if member.startswith("checkpoints/"):
+                _validate_checkpoint_file(zf.read(member))  # 先校验，再删除旧检查点
 
         _remove_symbol_checkpoints(symbol)
         installed: list[str] = []
@@ -178,7 +187,7 @@ def _import_zip(content: bytes, expected_symbol: str | None) -> dict[str, Any]:
             dest.write_bytes(zf.read(member))
             installed.append(str(dest.relative_to(PROJECT_ROOT)).replace("\\", "/"))
 
-            if member.endswith(".pt"):
+            if member.startswith("checkpoints/"):
                 try:
                     _validate_checkpoint_file(dest)
                 except Exception:
@@ -210,6 +219,7 @@ def _import_pt(content: bytes, filename: str, expected_symbol: str | None) -> di
             f"检查点品种为 {symbol}，与当前选择的 {expected_symbol} 不一致"
         )
 
+    _validate_checkpoint_file(content)  # 先校验，再删除旧曲线/检查点
     CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
     dest = CHECKPOINT_DIR / ckpt_name
 

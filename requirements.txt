@@ -7,7 +7,7 @@
 #   python -m pip install "git+https://github.com/rongardF/tvdatafeed.git"
 
 # ===== Deep Learning & Numerical =====
-torch>=2.0.0
+torch>=2.6.0
 numpy>=1.24.0
 scipy>=1.10.0
 

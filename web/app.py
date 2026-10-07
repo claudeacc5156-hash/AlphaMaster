@@ -86,9 +86,10 @@ def _hostname(value: str) -> str:
 
 @app.middleware("http")
 async def _local_only(request: Request, call_next):
+    host = request.headers.get("host", "")
     origin = request.headers.get("origin")
-    if _hostname(request.headers.get("host", "")) not in _ALLOWED_HOSTS or (
-        origin is not None and _hostname(origin) not in _ALLOWED_HOSTS
+    if "@" in host or _hostname(host) not in _ALLOWED_HOSTS or (
+        origin is not None and urlsplit(origin).netloc.lower() != host.lower()
     ):
         return JSONResponse({"detail": "仅允许本机访问"}, status_code=403)
     return await call_next(request)
@@ -500,19 +501,16 @@ def api_ai_analyze_training(req: AnalyzeTrainingRequest):
 
 
 @app.post("/api/data-file/browse")
-@app.get("/api/data-file/browse")
 def api_browse_data_file() -> dict[str, Any]:
     return _browse_data_file()
 
 
 @app.post("/api/strategy-file/browse")
-@app.get("/api/strategy-file/browse")
 def api_browse_strategy_file() -> dict[str, Any]:
     return _browse_strategy_file()
 
 
 @app.post("/api/strategy-file/sync-best")
-@app.get("/api/strategy-file/sync-best")
 def api_sync_best_strategy(symbol: str | None = None) -> dict[str, Any]:
     sym = _resolve_train_symbol(symbol)
     if not sym:
