@@ -1,8 +1,11 @@
-"""Speed-path equivalence: the fast EMA recursion must give exactly the same
-results as the original Python loop."""
+"""Speed-path equivalence: the fast EMA recursion and the vectorised turnover
+count must give exactly the same results as the original Python loops."""
+import math
+
 import pytest
 import torch
 
+from model_core.backtest import MT5Backtest
 from model_core.ops import _ema_recursion_lfilter, _ema_recursion_loop, _ema_simple
 
 
@@ -44,3 +47,67 @@ def test_ema_falls_back_for_unsupported_inputs():
     x = torch.randn(1, 50, requires_grad=True)
     assert _ema_recursion_lfilter(x, 0.3) is None
     assert _ema_recursion_lfilter(torch.randn(1, 50).half(), 0.3) is None
+
+
+def _turnover_quality_reference(position: torch.Tensor) -> float:
+    """The original per-bar loop, kept here as the reference."""
+    N, T = position.shape
+    pos_2d = position.tolist()
+    all_runs, total_trades = [], 0
+    for n in range(N):
+        runs, cur_len, cur_dir = [], 0, 0
+        for p in pos_2d[n]:
+            pi = int(p)
+            if pi != 0:
+                if pi == cur_dir:
+                    cur_len += 1
+                else:
+                    if cur_len > 0: runs.append(cur_len)
+                    cur_dir, cur_len = pi, 1
+            else:
+                if cur_len > 0: runs.append(cur_len)
+                cur_dir, cur_len = 0, 0
+        if cur_len > 0: runs.append(cur_len)
+        all_runs.extend(runs)
+        total_trades += len(runs)
+    total_bars = N * T
+    target_trades = total_bars / 12.0
+    actual_ratio = total_trades / max(target_trades, 1.0)
+    if actual_ratio <= 0:
+        freq_score = -2.0
+    elif actual_ratio < 0.05:
+        freq_score = -2.0 + actual_ratio / 0.05
+    elif actual_ratio < 0.5:
+        freq_score = -1.0 + (actual_ratio - 0.05) / 0.45
+    elif actual_ratio <= 2.0:
+        log_r = math.log(actual_ratio) / math.log(2.0)
+        freq_score = 1.0 * math.exp(-0.5 * log_r ** 2)
+    elif actual_ratio <= 8.0:
+        freq_score = 0.5 - (actual_ratio - 2.0) / 6.0 * 1.5
+    else:
+        freq_score = -2.0
+    hold_bonus = 0.0
+    if all_runs:
+        avg_hold = sum(all_runs) / len(all_runs)
+        hold_bonus = min(0.3, math.log(max(avg_hold, 1.0)) / math.log(30.0) * 0.3)
+    return float(freq_score + hold_bonus)
+
+
+def test_turnover_quality_vectorised_matches_loop():
+    bt = MT5Backtest()
+    g = torch.Generator().manual_seed(7)
+    cases = [
+        torch.tanh(torch.randn(1, 3000, generator=g) * 3),           # continuous, |p| < 1
+        torch.randint(-1, 2, (1, 3000), generator=g).float(),        # {-1, 0, 1}
+        torch.randint(-1, 2, (3, 500), generator=g).float(),         # several rows
+        torch.randn(2, 400, generator=g) * 2.5,                      # |p| >= 1 truncates
+        torch.ones(1, 100), -torch.ones(1, 100), torch.zeros(1, 100),
+        torch.tensor([[1.0, 1.0, 0.0, -1.0, -1.0, 1.0, 0.9, -0.0, 2.0, 2.7, 1.0]]),
+    ]
+    sparse = torch.zeros(1, 2400)
+    sparse[0, ::40] = 1.0
+    cases.append(sparse)
+    for pos in cases:
+        assert bt._turnover_quality(pos) == _turnover_quality_reference(pos)
+    with pytest.raises(ValueError):
+        bt._turnover_quality(torch.tensor([[1.0, float("nan")]]))

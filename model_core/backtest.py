@@ -295,25 +295,35 @@ class MT5Backtest:
         目标：每 12 bar 一笔（H1 每天约一笔）。
         """
         N, T = position.shape
-        pos_2d = position.tolist()
-        all_runs, total_trades = [], 0
-
-        for n in range(N):
-            runs, cur_len, cur_dir = [], 0, 0
-            for p in pos_2d[n]:
-                pi = int(p)
-                if pi != 0:
-                    if pi == cur_dir:
-                        cur_len += 1
+        if bool(torch.isfinite(position).all()):
+            # Vectorised form of the per-bar loop below (same counts, no Python loop):
+            # a run starts where int(p) is non-zero and differs from the previous bar's.
+            d = torch.trunc(position)
+            prev = torch.zeros_like(d)
+            prev[:, 1:] = d[:, :-1]
+            total_trades = int(((d != 0) & (d != prev)).sum().item())
+            held_bars = int((d != 0).sum().item())
+        else:
+            # Non-finite positions: keep the original loop (int() raises on NaN/inf).
+            pos_2d = position.tolist()
+            all_runs, total_trades = [], 0
+            for n in range(N):
+                runs, cur_len, cur_dir = [], 0, 0
+                for p in pos_2d[n]:
+                    pi = int(p)
+                    if pi != 0:
+                        if pi == cur_dir:
+                            cur_len += 1
+                        else:
+                            if cur_len > 0: runs.append(cur_len)
+                            cur_dir, cur_len = pi, 1
                     else:
                         if cur_len > 0: runs.append(cur_len)
-                        cur_dir, cur_len = pi, 1
-                else:
-                    if cur_len > 0: runs.append(cur_len)
-                    cur_dir, cur_len = 0, 0
-            if cur_len > 0: runs.append(cur_len)
-            all_runs.extend(runs)
-            total_trades += len(runs)
+                        cur_dir, cur_len = 0, 0
+                if cur_len > 0: runs.append(cur_len)
+                all_runs.extend(runs)
+                total_trades += len(runs)
+            held_bars = sum(all_runs)
 
         total_bars    = N * T
         target_trades = total_bars / 12.0
@@ -334,8 +344,8 @@ class MT5Backtest:
             freq_score = -2.0
 
         hold_bonus = 0.0
-        if all_runs:
-            avg_hold = sum(all_runs) / len(all_runs)
+        if total_trades:
+            avg_hold = held_bars / total_trades
             hold_bonus = min(0.3, math.log(max(avg_hold, 1.0)) / math.log(30.0) * 0.3)
 
         return float(freq_score + hold_bonus)
