@@ -6,12 +6,15 @@ Usage (from the repo root; Windows PowerShell shown):
 
 What it does differently from `python train_file.py --data-file ... --from-scratch`:
   * trains for exactly --steps steps (ModelConfig.TRAIN_STEPS is overridden for this run only);
-  * seeds python/numpy/torch so a run can be repeated;
-  * starts truly from scratch: an existing strategies/best_<SYMBOL>.json is NOT used as a
-    score floor, so the reported best belongs to this run alone (the file itself is still
-    only overwritten when this run beats it, as in train_file.py);
-  * counts every formula evaluation (the trial count needed for multiple-testing checks)
-    and appends one JSON line to logs/trials.jsonl.
+  * seeds python/numpy/torch; a repeat gives the same result only with the same --threads,
+    the same library versions and the same machine;
+  * runs in its own folder, logs/trial_runs/<run id>/, so its checkpoints, training history
+    and strategies/best_<SYMBOL>.json stay there. Nothing in the repo's own checkpoints/ or
+    strategies/ is read, deleted or overwritten, and the reported best belongs to this run;
+  * appends one JSON line to logs/trials.jsonl, also when the run is stopped (Ctrl+C) or
+    fails, so stopped runs still count. unique_formulas is the number of distinct formulas
+    tested (use it as the trial count for multiple-testing checks); formulas_evaluated also
+    counts the elite re-tests each step and measures compute.
 
 The best score is AlphaMaster's composite validation score on its walk-forward folds of the
 data file. It is chosen from thousands of formulas, so it is optimistic: compare it against a
@@ -23,7 +26,9 @@ import argparse
 import hashlib
 import json
 import os
+import platform
 import random
+import re
 import subprocess
 import sys
 import time
@@ -69,15 +74,30 @@ def main() -> int:
     data_file = Path(a.data_file).resolve()
     if not data_file.is_file():
         ap.error(f"data file not found: {data_file}")
-    os.chdir(ROOT)  # checkpoints/, strategies/ and logs/ are relative to the repo root
+
+    os.chdir(ROOT)  # AlphaMaster resolves its config relative to the repo root
+    from data_pipeline.parquet_manager import parse_parquet_filename
+    try:
+        symbol, timeframe = parse_parquet_filename(data_file)
+    except ValueError:
+        ap.error(f"the file name must look like SYMBOL_TF.parquet (e.g. XAUUSD_H1.parquet): {data_file.name}")
 
     import numpy as np
+    import scipy
     import torch
 
     import train_file
     from model_core.backtest import SCORE_VERSION
     from model_core.config import ModelConfig
     from model_core.engine import AlphaEngine
+
+    started = datetime.now(timezone.utc)
+    safe_tag = re.sub(r"[^A-Za-z0-9_.-]+", "-", a.tag).strip("-")
+    run_id = f"{started:%Y%m%d_%H%M%S}_{symbol}_{timeframe}_seed{a.seed}" + (f"_{safe_tag}" if safe_tag else "")
+    run_dir = ROOT / "logs" / "trial_runs" / run_id
+    run_dir.mkdir(parents=True, exist_ok=False)
+    os.chdir(run_dir)  # the engine writes checkpoints/, strategies/ and history relative to cwd
+    print(f"Trial {run_id}: {symbol} {timeframe}, {a.steps} steps, seed {a.seed}. Output folder: {run_dir}")
 
     ModelConfig.REWARD_MODE = "ftmo"          # same as train_file.py's command line
     ModelConfig.TRAIN_STEPS = a.steps
@@ -86,9 +106,6 @@ def main() -> int:
     random.seed(a.seed)
     np.random.seed(a.seed)
     torch.manual_seed(a.seed)
-
-    # Truly from scratch: no score floor from an earlier run's strategy file.
-    train_file._seed_best_from_strategy = lambda engine, symbol: None
 
     seen: set[tuple[int, ...]] = set()
     counts = {"evaluated": 0}
@@ -101,47 +118,62 @@ def main() -> int:
 
     AlphaEngine._eval_formula_task = counting_task
 
-    started = datetime.now(timezone.utc)
-    t0 = time.time()
-    engine = train_file.train_from_file(str(data_file), from_scratch=True)
-    wall = time.time() - t0
-
     record = {
         "label": "research only",
+        "run_id": run_id,
         "tag": a.tag,
         "started_utc": started.isoformat(timespec="seconds"),
-        "wall_seconds": round(wall, 1),
-        "seconds_per_step": round(wall / a.steps, 1),
         "git_commit": _git_commit(),
         "data_file": str(data_file),
         "data_sha256": _sha256(data_file),
+        "symbol": symbol,
+        "timeframe": timeframe,
         "steps": a.steps,
         "seed": a.seed,
         "torch_threads": torch.get_num_threads(),
         "batch_size": ModelConfig.BATCH_SIZE,
-        "formulas_evaluated": counts["evaluated"],
-        "unique_formulas": len(seen),
         "score_version": SCORE_VERSION,
-        "completed": engine is not None,
+        "versions": {"python": sys.version.split()[0], "torch": torch.__version__,
+                     "numpy": np.__version__, "scipy": scipy.__version__,
+                     "platform": platform.platform()},
+        "output_dir": str(run_dir),
     }
-    if engine is not None:
+    engine = None
+    status = "error"
+    t0 = time.time()
+    try:
+        engine = train_file.train_from_file(str(data_file), from_scratch=True)
+        status = "completed" if engine is not None else "failed"
+    except KeyboardInterrupt:
+        status = "interrupted"
+        raise
+    except BaseException as e:
+        status = f"error: {type(e).__name__}: {e}"
+        raise
+    finally:
+        wall = time.time() - t0
         record.update({
-            "symbol": engine.target_symbol,
-            "best_validation_score": None if engine.best_formula is None else float(engine.best_score),
-            "best_formula": engine.best_formula,
-            "best_formula_decoded": (engine._decode_formula(engine.best_formula)
-                                     if engine.best_formula else None),
+            "status": status,
+            "wall_seconds": round(wall, 1),
+            "steps_done_approx": counts["evaluated"] // max(1, ModelConfig.BATCH_SIZE),
+            "seconds_per_step": round(wall / max(1, counts["evaluated"] // max(1, ModelConfig.BATCH_SIZE)), 1),
+            "formulas_evaluated": counts["evaluated"],
+            "unique_formulas": len(seen),
         })
-
-    log = ROOT / "logs" / "trials.jsonl"
-    log.parent.mkdir(exist_ok=True)
-    with open(log, "a", encoding="utf-8") as f:
-        f.write(json.dumps(record, ensure_ascii=False) + "\n")
-
-    print("\n=== Trial record (research only) ===")
-    print(json.dumps(record, indent=2, ensure_ascii=False))
-    print(f"Appended to {log}")
-    return 0 if engine is not None else 1
+        if engine is not None:
+            record.update({
+                "best_validation_score": None if engine.best_formula is None else float(engine.best_score),
+                "best_formula": engine.best_formula,
+                "best_formula_decoded": (engine._decode_formula(engine.best_formula)
+                                         if engine.best_formula else None),
+            })
+        log = ROOT / "logs" / "trials.jsonl"
+        with open(log, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+        print("\n=== Trial record (research only) ===")
+        print(json.dumps(record, indent=2, ensure_ascii=False))
+        print(f"Appended to {log}")
+    return 0 if status == "completed" else 1
 
 
 if __name__ == "__main__":
