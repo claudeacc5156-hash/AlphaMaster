@@ -32,21 +32,45 @@ def test_ema_fast_path_is_bit_identical(dtype, span):
         assert torch.equal(_ema_simple(x, span), ref)
 
 
-def test_ema_fast_path_propagates_nan_and_inf_like_loop():
+def test_ema_fast_path_propagates_nan_like_loop():
     pytest.importorskip("scipy")
     x = torch.randn(1, 400)
     x[0, 10] = float("nan")
-    x[0, 200] = float("inf")
     fast = _ema_recursion_lfilter(x, 2.0 / 6.0)
     ref = _ema_recursion_loop(x, 2.0 / 6.0)
     assert torch.equal(torch.isnan(fast), torch.isnan(ref))
     assert torch.equal(torch.nan_to_num(fast, nan=0.0), torch.nan_to_num(ref, nan=0.0))
 
 
+@pytest.mark.parametrize("bad", [float("inf"), float("-inf")])
+@pytest.mark.parametrize("pos", [0, 1, 200])
+def test_ema_with_inf_matches_loop(bad, pos):
+    x = torch.randn(2, 400)
+    x[1, pos] = bad
+    out = _ema_simple(x, 5)
+    ref = _ema_recursion_loop(x, 2.0 / 6.0)
+    assert torch.equal(torch.isnan(out), torch.isnan(ref))
+    assert torch.equal(torch.nan_to_num(out, nan=0.0), torch.nan_to_num(ref, nan=0.0))
+
+
+def test_ema_fast_path_keeps_loop_memory_layout():
+    pytest.importorskip("scipy")
+    base = torch.randn(1, 300).cumsum(1)
+    for x in (base.expand(6, 300), torch.randn(300, 4).t(), base.unfold(1, 4, 1)[0].t()):
+        fast = _ema_recursion_lfilter(x, 2.0 / 21.0)
+        ref = _ema_recursion_loop(x, 2.0 / 21.0)
+        assert fast.stride() == ref.stride()
+        assert torch.equal(fast, ref)
+        fast.resize_(fast.numel())  # a normal, resizable torch tensor
+
+
 def test_ema_falls_back_for_unsupported_inputs():
     x = torch.randn(1, 50, requires_grad=True)
     assert _ema_recursion_lfilter(x, 0.3) is None
     assert _ema_recursion_lfilter(torch.randn(1, 50).half(), 0.3) is None
+    neg = torch._neg_view(torch.randn(1, 50))
+    assert _ema_recursion_lfilter(neg, 0.3) is None
+    assert torch.equal(_ema_simple(neg, 5), _ema_recursion_loop(neg, 2.0 / 6.0))
 
 
 def _turnover_quality_reference(position: torch.Tensor) -> float:
@@ -107,6 +131,8 @@ def test_turnover_quality_vectorised_matches_loop():
     sparse = torch.zeros(1, 2400)
     sparse[0, ::40] = 1.0
     cases.append(sparse)
+    cases += [torch.tensor([[True, True, False, True, False, False, True]]),
+              torch.randint(-2, 3, (2, 300), generator=g)]                  # bool / int dtypes
     for pos in cases:
         assert bt._turnover_quality(pos) == _turnover_quality_reference(pos)
     with pytest.raises(ValueError):

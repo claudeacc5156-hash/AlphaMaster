@@ -295,7 +295,7 @@ class MT5Backtest:
         目标：每 12 bar 一笔（H1 每天约一笔）。
         """
         N, T = position.shape
-        if bool(torch.isfinite(position).all()):
+        if position.is_floating_point() and bool(torch.isfinite(position).all()):
             # Vectorised form of the per-bar loop below (same counts, no Python loop):
             # a run starts where int(p) is non-zero and differs from the previous bar's.
             d = torch.trunc(position)
@@ -304,7 +304,7 @@ class MT5Backtest:
             total_trades = int(((d != 0) & (d != prev)).sum().item())
             held_bars = int((d != 0).sum().item())
         else:
-            # Non-finite positions: keep the original loop (int() raises on NaN/inf).
+            # Non-float or non-finite positions: keep the original loop (int() raises on NaN/inf).
             pos_2d = position.tolist()
             all_runs, total_trades = [], 0
             for n in range(N):

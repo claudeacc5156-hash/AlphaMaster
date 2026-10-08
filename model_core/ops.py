@@ -198,23 +198,32 @@ def _ema_recursion_lfilter(x: torch.Tensor, alpha: float) -> torch.Tensor | None
     float32/float64 recursion fl(fl(alpha*x[t]) + fl((1-alpha)*y[t-1])), so the
     output is bit-identical (see tests/property/test_prop_ops_speed.py). Starting
     at t=1 with zi = (1-alpha)*x[0] keeps out[0] == x[0] exactly. Returns None
-    (caller falls back to the loop) for other dtypes/devices or without scipy.
+    (caller falls back to the loop) for other dtypes/devices, without scipy, and
+    for inputs holding +/-inf: lfilter's state update computes inf*0 = NaN where
+    the loop carries the inf forward.
     """
     if _lfilter is None:
         return None
-    if x.device.type != "cpu" or x.dtype not in (torch.float32, torch.float64) or x.requires_grad:
+    if (x.device.type != "cpu" or x.dtype not in (torch.float32, torch.float64)
+            or x.requires_grad or x.is_neg() or x.is_conj()):
         return None
-    xn = x.numpy()
+    try:
+        xn = x.numpy()
+    except (RuntimeError, TypeError):
+        return None
+    if _np.isinf(xn).any():
+        return None
     dt = xn.dtype
     a = _np.asarray(alpha, dtype=dt)
     b = _np.asarray(1 - alpha, dtype=dt)
-    out = _np.empty_like(xn)
+    res = torch.empty_like(x)          # same memory layout as the loop's zeros_like
+    out = res.numpy()
     out[:, 0] = xn[:, 0]
     if xn.shape[1] > 1:
         zi = (b * xn[:, :1]).astype(dt)
         out[:, 1:], _ = _lfilter(_np.array([a], dtype=dt), _np.array([1, -b], dtype=dt),
                                  xn[:, 1:], axis=1, zi=zi)
-    return torch.from_numpy(out)
+    return res
 
 
 def _ts_quantile(x: torch.Tensor, d: int) -> torch.Tensor:
