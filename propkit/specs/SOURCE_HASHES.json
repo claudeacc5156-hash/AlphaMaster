@@ -1,0 +1,6 @@
+{
+  "_comment": "sha256 of the authoritative records files (records/specs/, see records/LEDGER.md). zeno_pullback_v1.json and zeno_pullback_v1.md.utf8 are byte-for-byte copies. zeno_pullback_v1.md is the same text with U+2605 (the star marking four defaults) folded to '(*)', because every .md under propkit/ must be ASCII; nothing else differs. Research only.",
+  "zeno_pullback_v1.json": "ebd8017a271229786c5a79f08baddd0e6b4940be52f8e28d40706dddb1f7b31a",
+  "zeno_pullback_v1.md": "d36ad25f74c293166bd82f117cb96a6e6890a2ab2c3dd63dbc41bff52b67bbcb",
+  "md_ascii_fold": {"from": "U+2605", "to": "(*)", "occurrences": 5}
+}

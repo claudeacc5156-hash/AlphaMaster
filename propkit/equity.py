@@ -47,12 +47,15 @@ equity_worst[k] is the lower of
   equity_worst[k] <= equity_close[k-1] - commission_usd[k] + min(swap_usd[k], 0).
 
 One spread per bar (BARS.spread, or the fixed spread; CostModel.bar_spreads) is used for every fill and
-every ask-side mark inside that bar: an approximation, the real spread moves within the bar.
+every ask-side mark inside that bar: an approximation, the real spread moves within the bar. A caller with
+real ask bars can pass them (equity_from_trades(..., ask_prices=)): shorts are then marked at the ask close
+and their worst at the ask high (propkit.zeno_v1 does, for D14).
 Research only: nothing here places or prepares orders.
 """
 from __future__ import annotations
 
 import math
+from typing import Any, Mapping
 
 import numpy as np
 import pandas as pd
@@ -164,7 +167,8 @@ def _swap_events(trade_entry: np.ndarray, trade_exit: np.ndarray, times: np.ndar
 
 
 def equity_from_trades(bars: pd.DataFrame, trades: pd.DataFrame | None, C0: float, cost_model: CostModel,
-                       price_tolerance: float | None = DEFAULT_PRICE_TOLERANCE) -> tuple[pd.DataFrame, pd.DataFrame]:
+                       price_tolerance: float | None = DEFAULT_PRICE_TOLERANCE,
+                       ask_prices: Mapping[str, Any] | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
     """The account path of a trade list: returns (EQUITY, TRADES with commission, swap and PnL filled).
 
     bars: BARS (BID prices, USD/oz; validated again here); trades: TRADES (see propkit.adapters; entry and
@@ -181,6 +185,11 @@ def equity_from_trades(bars: pd.DataFrame, trades: pd.DataFrame | None, C0: floa
     commission_usd, swap_usd and pnl_usd are replaced.
     price_tolerance: each fill must lie within [bid low x (1 - tol), (bid high + spread) x (1 + tol)] of
     its bar (catches wrong instruments, price scales or time zones); None switches the check off.
+    ask_prices: optional, the ACTUAL ask per bar, {"high": ..., "close": ...} (USD/oz, one finite value per
+    bar of `bars`). Given, a short open at a bar's close is marked at that bar's ask close, and its worst
+    inside a bar (open at the close, or closed in the bar with exposure) at max(ask high, ask close),
+    instead of bid + the bar's one spread; use it when the spread moves inside a bar (data with its own
+    ask bars). None (the default) keeps bid + spread, so every existing result is unchanged.
     See the module docstring for the EQUITY columns, the bar of an instant, swap and equity_worst.
     Fully vectorised (no loop over bars or trades).
     """
@@ -198,6 +207,10 @@ def equity_from_trades(bars: pd.DataFrame, trades: pd.DataFrame | None, C0: floa
     spread = cost_model.bar_spreads(b)
     n = len(times)
     bar_seconds = bars_mod.infer_bar_seconds(times)
+    if ask_prices is None:
+        ask_c, ask_h = c + spread, h + spread                  # the ask = bid + the bar's one spread
+    else:
+        ask_c, ask_h = _ask_marks(ask_prices, n)
 
     side = tr["side"].to_numpy(dtype=np.int64)
     units = tr["units"].to_numpy(dtype=np.float64)
@@ -238,11 +251,11 @@ def equity_from_trades(bars: pd.DataFrame, trades: pd.DataFrame | None, C0: floa
     v_long = _held_sums(e[is_long], x[is_long], (units * ep)[is_long], n)
     u_short = _held_sums(e[~is_long], x[~is_long], units[~is_long], n)
     v_short = _held_sums(e[~is_long], x[~is_long], (units * ep)[~is_long], n)
-    equity_close = balance + (c * u_long - v_long) + (v_short - (c + spread) * u_short)
-    open_worst = (lo * u_long - v_long) + (v_short - (h + spread) * u_short)
+    equity_close = balance + (c * u_long - v_long) + (v_short - ask_c * u_short)
+    open_worst = (lo * u_long - v_long) + (v_short - ask_h * u_short)
 
     # positions closed in a bar
-    adverse = np.where(is_long, units * (lo[x] - ep), units * (ep - (h[x] + spread[x])))
+    adverse = np.where(is_long, units * (lo[x] - ep), units * (ep - ask_h[x]))
     no_exposure = (xt == times[x]) | np.isin(reason, STOP_EXITS)
     closed = np.where(no_exposure, gross, np.minimum(gross, adverse))
     closed_worst = np.bincount(x, closed, minlength=n)
@@ -277,6 +290,21 @@ def equity_from_trades(bars: pd.DataFrame, trades: pd.DataFrame | None, C0: floa
         risk[need] = units[need] * np.abs(ep[need] - stop_fill) + np.asarray(planned, dtype=np.float64)
         out["risk_usd"] = risk
     return equity, out
+
+
+def _ask_marks(ask_prices: Mapping[str, Any], n: int) -> tuple[np.ndarray, np.ndarray]:
+    """(ask close, worst ask = max(ask high, ask close)) per bar from equity_from_trades' ask_prices."""
+    if not isinstance(ask_prices, Mapping) or set(ask_prices) != {"high", "close"}:
+        raise ValueError('ask_prices must be a dict {"high": array, "close": array} of the ask per bar, or None')
+    out = []
+    for key in ("close", "high"):
+        a = np.asarray(ask_prices[key], dtype=np.float64)
+        if a.shape != (n,):
+            raise ValueError(f"ask_prices['{key}'] must have one value per bar ({n}), got shape {a.shape}")
+        if not np.isfinite(a).all():
+            raise ValueError(f"ask_prices['{key}'] has a missing or infinite value")
+        out.append(a)
+    return out[0], np.maximum(out[1], out[0])
 
 
 def equity_from_positions(bars: pd.DataFrame, positions: pd.DataFrame, C0: float, cost_model: CostModel,

@@ -21,14 +21,17 @@ The usual pipeline (see propkit/README.md and `python -m propkit --help`):
 Modules: calendar (prop day, DST, sessions), costs (CostModel), bars (load and validate BARS), rules
 (PropRules, presets), evaluator (one path under the rules), bootstrap (Monte Carlo of challenges, largest
 size), equity (EQUITY from TRADES or POSITIONS), adapters (CSV files, AlphaMaster positions), stats (Sharpe,
-PSR, DSR, drawdown), indicators, pullback (zeno's rule as a spec), stress, report, cli, selftest.
+PSR, DSR, drawdown), indicators, pullback (a generic parametric pullback), zeno_v1 (zeno_pullback_v1, the
+frozen rule, bid + ask M15), zeno_report (its two-stage runner: signals for the G0 check, then the
+pre-registered grid and gates), stress, report, cli, selftest. PropRules.day_boundary picks the firm's day
+(cet_midnight default, ny_17, utc_midnight; calendar.firm_day).
 """
 from __future__ import annotations
 
 __version__ = "0.1.0"  # defined before the submodule imports: propkit.report reads it
 
 from propkit import calendar, costs, bars, rules, evaluator, bootstrap, equity, adapters  # noqa: E402
-from propkit import stats, indicators, pullback, stress, report  # noqa: E402
+from propkit import stats, indicators, pullback, stress, report, zeno_v1, zeno_report  # noqa: E402
 from propkit.adapters import (alphamaster_log_pnl, positions_from_alphamaster, read_positions_csv,  # noqa: E402
                               read_trades_csv, trades_from_positions, trades_summary, validate_positions,
                               validate_trades, write_equity_csv, write_positions_csv, write_trades_csv)
@@ -36,13 +39,14 @@ from propkit.bars import (LockedPathError, bars_summary, check_not_locked, is_lo
                           synthetic_bars, validate_bars)
 from propkit.bootstrap import (BootstrapResult, MaxSizeResult, bootstrap_challenges, build_day_units,  # noqa: E402
                                history_uncertainty, max_size)
-from propkit.calendar import day_start_utc, prop_day, session_mask  # noqa: E402
+from propkit.calendar import day_start_utc, firm_day, prop_day, session_mask  # noqa: E402
 from propkit.costs import CostModel  # noqa: E402
 from propkit.equity import equity_from_positions, equity_from_trades  # noqa: E402
 from propkit.evaluator import PathResult, evaluate_path, r_summary  # noqa: E402
 from propkit.pullback import PullbackSpec, generate_trades, generate_trades_detailed  # noqa: E402
 from propkit.report import analyse, render_markdown  # noqa: E402
-from propkit.rules import PRESET_NAMES, PropRules, ftmo_1step, ftmo_2step, preset  # noqa: E402
+from propkit.rules import (ALL_PRESET_NAMES, PRESET_NAMES, PropRules, ftmo_1step, ftmo_2step, preset,  # noqa: E402
+                           rules_and_info, rules_from_json)
 from propkit.stats import (daily_returns_from_equity, drawdown_stats, dsr, expected_shortfall,  # noqa: E402
                            min_track_record_length, psr, sharpe_stats)
 from propkit.stress import run_stress  # noqa: E402
@@ -59,14 +63,14 @@ __all__ = [
     "__version__",
     # modules
     "calendar", "costs", "bars", "rules", "evaluator", "bootstrap", "equity", "adapters", "stats", "indicators",
-    "pullback", "stress", "report",
+    "pullback", "stress", "report", "zeno_v1", "zeno_report",
     # data in
     "load_bars", "validate_bars", "bars_summary", "synthetic_bars", "LockedPathError", "is_locked_path",
     "check_not_locked", "read_trades_csv", "read_positions_csv", "validate_trades", "validate_positions",
     "positions_from_alphamaster", "alphamaster_log_pnl", "trades_from_positions", "trades_summary",
     # costs, rules, calendar
-    "CostModel", "PropRules", "preset", "ftmo_1step", "ftmo_2step", "PRESET_NAMES", "prop_day", "day_start_utc",
-    "session_mask",
+    "CostModel", "PropRules", "preset", "ftmo_1step", "ftmo_2step", "PRESET_NAMES", "ALL_PRESET_NAMES",
+    "rules_from_json", "rules_and_info", "prop_day", "firm_day", "day_start_utc", "session_mask",
     # account path and evaluation
     "equity_from_trades", "equity_from_positions", "evaluate_path", "PathResult", "r_summary",
     "build_day_units", "bootstrap_challenges", "max_size", "history_uncertainty", "BootstrapResult", "MaxSizeResult",

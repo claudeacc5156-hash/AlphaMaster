@@ -1,0 +1,53 @@
+{
+  "_comment": "PLACEHOLDER - NOT the FundingPips rule sheet. The verification of the FundingPips 1-Step Flex rules is still running (2026-10-08). This file holds no verified FundingPips number: only zeno's own account facts (100,000 USD account, the 2% daily-loss option zeno chose), tagged [U], and conservative structural choices where the sheet must decide. When the verified sheet exists, save it as fundingpips_1step_flex.json beside this file (same fields, _meta.verified true, a [VP] tag with source and date per field); --rules fundingpips-1step-flex then uses it.",
+  "_meta": {
+    "firm": "FundingPips",
+    "plan": "1-Step Flex, 2% daily-loss option, 100,000 USD (zeno's account)",
+    "status": "PLACEHOLDER - firm rules UNVERIFIED",
+    "verified": false,
+    "verified_on": null,
+    "as_of": "2026-10-08",
+    "sources": [
+      "zeno's Phase 0 message, 2026-10-08 14:25:36Z, as quoted in records/specs/zeno_pullback_v1.md (account facts only: plan name, 2% daily-loss option, 100,000 USD size, server clock New York + 7 h)",
+      "No FundingPips rule page was read: the FundingPips rule-sheet verification is still in progress"
+    ],
+    "tags": {
+      "initial_capital": "[U] 100,000 USD from zeno's message (zeno's account size), not from a FundingPips rule page",
+      "profit_target_pct": "[U] unknown: left off (null) because any value would be invented; P(pass), days to target and gate G4 are NOT evaluated",
+      "daily_loss_pct": "[U] 0.02 = the 2% daily-loss option named in zeno's message; how FundingPips measures it is unverified",
+      "daily_loss_base": "[U] assumed 'initial' (a fixed 2,000 USD on 100,000 USD); the sheet must say whether it is a % of the day-start balance",
+      "day_start_reference": "[U] assumed 'max_balance_equity' (the higher of balance and equity at the day start): the tighter, conservative choice",
+      "max_loss_pct": "[U] unknown: left off (null) because any value would be invented; P(max-loss breach) is therefore 0 by construction and NOT a result",
+      "max_loss_mode": "[U] assumed 'trailing_eod_balance' (unused while max_loss_pct is null): the tighter of the two modes",
+      "best_day_max_share": "[U] unknown: no consistency rule assumed (null)",
+      "best_day_basis": "[U] unused while best_day_max_share is null",
+      "min_trading_days": "[U] unknown: 0 assumed",
+      "target_requires_flat": "[U] assumed true (only closed results count)",
+      "breach_inclusive": "[U] assumed true (equity exactly at a floor breaches): the conservative choice",
+      "day_boundary": "[U] assumed 'ny_17' (the broker server midnight: server clock = New York + 7 h per zeno's message); the sheet must give the daily-loss reset time"
+    },
+    "conservative_choices": {
+      "day_start_reference": "max(balance, equity) at the day start gives a floor at least as high as the balance alone",
+      "breach_inclusive": "equity AT the floor counts as a breach",
+      "max_loss_mode": "a trailing floor is never lower than a static one (once a max-loss value is known)",
+      "profit_target_pct": "no value is invented; the gate that needs it (G4) is reported as not evaluated",
+      "max_loss_pct": "no value is invented; the gate that needs it (G4) is reported as not evaluated"
+    },
+    "warning": "FundingPips firm rules are UNVERIFIED (placeholder preset). Every prop-evaluator number under these rules is an illustration only; gate G4 is not evaluated."
+  },
+  "name": "FundingPips 1-Step Flex (PLACEHOLDER - firm rules UNVERIFIED)",
+  "initial_capital": 100000.0,
+  "profit_target_pct": null,
+  "daily_loss_pct": 0.02,
+  "daily_loss_base": "initial",
+  "day_start_reference": "max_balance_equity",
+  "max_loss_pct": null,
+  "max_loss_mode": "trailing_eod_balance",
+  "best_day_max_share": null,
+  "best_day_basis": "balance",
+  "min_trading_days": 0,
+  "target_requires_flat": true,
+  "breach_inclusive": true,
+  "day_boundary": "ny_17",
+  "notes": "PLACEHOLDER (2026-10-08): FundingPips rule sheet not verified yet; only zeno's account facts, every field [U]. Do not read any prop-firm number under these rules as FundingPips' terms."
+}

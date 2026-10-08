@@ -313,9 +313,11 @@ def write_positions_csv(positions: pd.DataFrame, path, utc_text: bool = True) ->
     return _write_csv(out, path, "positions file")
 
 
-def write_equity_csv(equity: pd.DataFrame, path, utc_text: bool = True) -> Path:
+def write_equity_csv(equity: pd.DataFrame, path, utc_text: bool = True,
+                     day_boundary: str = calendar.DEFAULT_DAY_BOUNDARY) -> Path:
     """Write an EQUITY table to a CSV file (ASCII, no index); utc_text=True adds time_utc and prop_day
-    ('YYYY-MM-DD', the CE(S)T date) text columns. Refuses locked-holdout paths."""
+    ('YYYY-MM-DD', the CE(S)T date, or the firm day of day_boundary: propkit.calendar.firm_day) text
+    columns. Refuses locked-holdout paths."""
     if not isinstance(equity, pd.DataFrame) or not set(EQUITY_COLUMNS) <= set(equity.columns):
         raise ValueError(f"write_equity_csv needs an EQUITY DataFrame with columns {list(EQUITY_COLUMNS)} "
                          "(from propkit.equity)")
@@ -323,7 +325,7 @@ def write_equity_csv(equity: pd.DataFrame, path, utc_text: bool = True) -> Path:
     if utc_text and len(out):
         t = out["time"].to_numpy(dtype=np.int64)
         out["time_utc"] = calendar.utc_str(t)
-        out["prop_day"] = calendar.day_to_str(calendar.prop_day(t))
+        out["prop_day"] = calendar.day_to_str(calendar.firm_day(t, day_boundary))
     return _write_csv(out, path, "equity file")
 
 

@@ -185,12 +185,13 @@ def drop_top_winners(trades: pd.DataFrame, share: float = TOP_WINNER_SHARE) -> t
     return _with_ledger(trades.loc[keep].reset_index(drop=True)), info
 
 
-def drop_best_period(trades: pd.DataFrame, period: str = "month") -> tuple[pd.DataFrame, dict[str, Any]]:
+def drop_best_period(trades: pd.DataFrame, period: str = "month",
+                     day_boundary: str = calendar.DEFAULT_DAY_BOUNDARY) -> tuple[pd.DataFrame, dict[str, Any]]:
     """TRADES without those exiting in the best calendar month or year (highest summed pnl_usd).
 
-    period: "month" or "year", of the prop day (CE(S)T date) of exit_time. Returns (TRADES with ledger
-    columns cleared, info: period, label e.g. '2024-03', its pnl_usd and n_dropped; label None when there
-    are no trades)."""
+    period: "month" or "year", of the prop day (CE(S)T date, or the firm day of day_boundary,
+    propkit.calendar.firm_day) of exit_time. Returns (TRADES with ledger columns cleared, info: period,
+    label e.g. '2024-03', its pnl_usd and n_dropped; label None when there are no trades)."""
     if period not in ("month", "year"):
         raise ValueError(f"period must be 'month' or 'year', got {period!r}")
     info: dict[str, Any] = {"period": period, "label": None, "pnl_usd": 0.0, "n_dropped": 0}
@@ -199,7 +200,7 @@ def drop_best_period(trades: pd.DataFrame, period: str = "month") -> tuple[pd.Da
     pnl = trades["pnl_usd"].to_numpy(dtype=np.float64)
     if not np.isfinite(pnl).all():
         raise ValueError("drop_best_period needs pnl_usd on every trade (run equity_from_trades first)")
-    days = np.asarray(calendar.prop_day(trades["exit_time"].to_numpy(dtype=np.int64)), dtype=np.int64)
+    days = np.asarray(calendar.firm_day(trades["exit_time"].to_numpy(dtype=np.int64), day_boundary), dtype=np.int64)
     text = np.asarray(calendar.day_to_str(days), dtype=object)
     labels = np.array([t[:7] if period == "month" else t[:4] for t in text], dtype=object)
     sums = pd.Series(pnl).groupby(labels).sum()
@@ -388,7 +389,7 @@ def run_stress(bars: pd.DataFrame, trades: pd.DataFrame, C0: float, cost_model: 
                              note=f"{tinfo['n_dropped']} of {tinfo['n_winners']} winners dropped "
                                   f"({tinfo['dropped_pnl_usd']:,.2f} USD)", **kw))
     for period in ("month", "year"):
-        dropped, pinfo = drop_best_period(trades, period)
+        dropped, pinfo = drop_best_period(trades, period, rules.day_boundary)
         label = pinfo["label"] or "none"
         rows.append(scenario_row(f"drop best {period}", bars, dropped, cost_model=cost_model,
                                  note=f"{label}: {pinfo['n_dropped']} trade(s), {pinfo['pnl_usd']:,.2f} USD", **kw))

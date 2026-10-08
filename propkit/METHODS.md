@@ -94,7 +94,9 @@ history gives the bootstrap few independent starting points (see section 5).
 - The prop day is the CE(S)T calendar date: it starts at 22:00 UTC in summer and 23:00 UTC in winter. DST is
   computed from the EU and US rules; no time-zone database is needed.
 - FTMO rules as of 24 Sep 2026 (`python -m propkit rules`); recheck them before every challenge.
-- One spread per bar is used for every fill and ask-side mark in that bar (an approximation).
+- One spread per bar is used for every fill and ask-side mark in that bar (an approximation). A caller with
+  real ask bars may pass them (`equity_from_trades(..., ask_prices={"high": ..., "close": ...})`): shorts are
+  then marked at the ask close and their worst at the ask high; without it nothing changes.
 - The bar size is the most common step between bar times (M15, M30 or H1). A file so short that a weekend
   step is as common as the bar step (two bars, Friday and Sunday) is refused: pass a few hours of bars.
 - "No position open" (the target needs it; the bootstrap cuts its blocks there) means units open = 0 AND
@@ -177,3 +179,163 @@ raw = generate_trades(bars, PullbackSpec.from_json(r"logs\my_pullback.json"), 10
 equity, trades = equity_from_trades(bars, raw, 100000.0, CostModel())
 report = analyse(bars, trades, equity, preset("ftmo-1step", 100000.0), CostModel())
 ```
+
+## 8. zeno_pullback_v1 (propkit.zeno_v1, propkit.zeno_report, `python -m propkit zeno-v1`)
+
+RESEARCH ONLY - not trading advice. zeno's pullback rule exactly as frozen in
+`propkit\specs\zeno_pullback_v1.md` (D1-D24, costs, reports, gates G0-G5). The generic `pullback` command
+above is NOT this rule. Nothing here places or prepares orders.
+
+### 8.1 Running it on the PC
+
+The project has no 15m data yet: export Dukascopy XAUUSD M15 BID and ASK bars (UTC) for 2015-01-01 to
+2025-09-27, as CSV (time, open, high, low, close) or as dukascopy-node CSV (timestamp in ms). Every bar must
+open before 2025-09-28 00:00 UTC; a later bar is refused and there is no override (D1, the holdout lock). The
+file names below are examples; the news calendar is the project's `research\news_calendar` file.
+
+```powershell
+# stage 1 (about 10 s): signals for the G0 chart check - no P&L, no R, no outcome
+python -m propkit zeno-v1 signals --m15-bid research\data\xauusd\m15\XAUUSD_M15_bid.csv --m15-ask research\data\xauusd\m15\XAUUSD_M15_ask.csv --news research\news_calendar\us_macro_events_2015-01-01_2025-09-27.csv --out logs\zeno_g0
+
+# G0: open logs\zeno_g0\g0_sample.csv, check every row on an M15 BID chart, write y or n in agree_y_n on every row
+
+# stage 2 (about 1-2 minutes for 10.7 years): only if you agree with at least 18 of the 20
+python -m propkit zeno-v1 run --g0-confirmed --g0-sample logs\zeno_g0\g0_sample.csv --m15-bid research\data\xauusd\m15\XAUUSD_M15_bid.csv --m15-ask research\data\xauusd\m15\XAUUSD_M15_ask.csv --news research\news_calendar\us_macro_events_2015-01-01_2025-09-27.csv --rules fundingpips-1step-flex --out logs\zeno_run
+```
+
+`signals` options: `--sample 20` and `--seed 7` (the G0 draw), and the declared cost cell `--variant
+evaluation --commission 10 --spread-base S1 --cost-mult 1.5 --capital 100000` (whether a trigger is
+eligible depends on the spread filter, which needs costs [SI-27]; the entry and stop shown are the chart's,
+the data at costs x1 [SI-66]). `signals` refuses to replace a g0_sample.csv in --out that already holds
+answers. `run` options:
+`--g0-confirmed` (required), `--g0-sample FILE` (its sha256 and your y/n answers go into gates.json; a sample
+with more than 2 n of 20 is refused, and once any row is answered every row must be y or n, there must be
+20 rows and at least 18 y [SI-60]; every row must be an eligible signal of the data being judged, in the cell
+declared in the signals_report.json beside the sample, with the same entry and stop [SI-69]), `--rules` (default `fundingpips-1step-flex`, a preset
+or a rules .json file), `--reference-rules ftmo-1step` (the judging cell under another firm's rules, for
+comparison only), `--m1-bid/--m1-ask` (the D15 second run), `--n-sims 10000`, `--seed 7`, `--history-reps 30`,
+`--capital` (default: the rules' 100,000 USD). Without `--g0-confirmed`, `run` stops before reading anything
+and says to do the G0 check first. Locked paths and outputs outside `--out` are refused (exit code 2).
+
+### 8.2 Output files
+
+| stage | file | what it holds |
+|---|---|---|
+| signals | signals.csv | one row per trigger: status (eligible or the first blocking reason; the daily limits, the cooldown and the one-position rule need earlier trades and are not applied [SI-54]) and every reason, times in UTC, SGT and server time (New York + 7 h), H, L, leg, ATR, the pullback bar, the trigger bar, the entry and stop a chart of the data shows (entry_price, stop_level, spread_entry: costs x1 [SI-66]) and the declared cell's (entry_price_at_costs, stop_level_at_costs, spread_entry_at_costs, which the spread filter used). No exit, P&L, R or outcome |
+| signals | decisions.csv | every setup event (armed, first_close_before_arming [SI-61], cancelled_new_extreme, voided, expired) and every trigger (news_pre_unscheduled marks a news block that comes only from the 30 min before an unscheduled row [SI-63]) |
+| signals | g0_sample.csv | 20 random eligible signals (seed 7) in time order with the chart's entry and stop [SI-66], and an empty agree_y_n column |
+| signals | signals_report.md / .json | counts only (triggers per status, side and year; setup events; unscheduled news rows), the declared cell, the data (D1 range, bars cut before 2015 [SI-62]) and the G0 instructions |
+| run | report.md / report.json | the verdict and gates, the judging cell, results per side, year and G3 period, daily Sharpe / PSR / DSR (N = 1), the prop evaluator, the 24 cells, the decision log, M1, data, rules with [U] fields, spec readings |
+| run | gates.json | G0-G5 and the kill rule: value, threshold, status (pass, fail, flagged, not_evaluated), the cell judged; G0 holds the sample's answers and sample_check (every row matched to this data [SI-69]) |
+| run | grid.csv | every cell x side (long, short, combined) x period (all, each year, the G3 periods): triggers, spread-filter blocks and positions vs the same cell at x1 [SI-65], positions, legs, trades per year, +2R hit rate, +4R after +2R, win rate, E[R] +- SE, E[USD], net USD, losing streak, outcome counts, daily SR +- SE, PSR, DSR, max drawdown |
+| run | trades.csv | the judging cell's TRADES, one row per leg (+2R half and runner separately), plus position_id and leg |
+| run | positions.csv / decisions.csv | the judging cell's positions (one row per entry, outcome class, time_exit_rule [SI-64]) and decision log |
+| run | positions_all_cells.csv | the positions of all 24 cells |
+| run | m1_diff.csv | with --m1-bid/--m1-ask: every judging-cell position, M15 vs M1-resolved (an ambiguous bar whose M1 bars do not reach its M15 low and high keeps the M15 answer [SI-68]) |
+
+### 8.3 Where G0 fits
+
+The spec's change policy: before any result (P&L, R, Sharpe, hit rate, pass or breach odds) is shown, zeno may
+still change a default; after it, any change is v2 and N rises. The G0 chart check shows signals without
+P&L, so stage 1 writes no result and stage 2 refuses to run until `--g0-confirmed` says the check was done
+and agreed (at least 18 of 20). Stage 1 leaves out the checks that need how and when earlier trades ended
+(the daily limits, the cooldown, one open position), so its statuses carry no outcome; a trigger that passes
+every other check is "eligible", and the run's entered signals are some of the eligible ones [SI-54].
+
+### 8.4 The grid, the judging cell and the gates
+
+24 cells: variant {evaluation 0.5% risk, master 0.4% risk with the news close} x commission {5, 10} USD per
+lot round trip x spread base {S1 = the data, S2 = bid + 0.18, 0.20 USD/oz from 05:00 to 08:00 SGT} x cost
+multiplier {1, 1.5, 2} (scales spread, commission and the 0.05 USD/oz stop slippage; the scaled spread also
+meets rule 10's 10%-of-R filter, so x1.5 and x2 trade fewer triggers: grid.csv shows how many [SI-65]). The
+judging cell is
+(evaluation, 10, the worse base, x1.5); the worse base is the one with the lower combined net E[R], a tie
+goes to S2 [SI-28]. G1: >= 100 positions (not legs) [SI-29]. G2: E[R] > 0 and PSR(SR > 0) >= 0.95 on
+server-day returns [SI-30]. G3: E[R] > 0 in >= 3 of 2015-2017, 2018-2020, 2021-2023, 2024-2025-09-27 (a
+position belongs to the server day of its trigger close and entry [SI-42]; an empty period is not above 0
+[SI-53]). G4:
+P(daily-loss breach before target) <= 5% and P(max-loss breach before target) <= 10% under the VERIFIED
+FundingPips rules, bootstrap without a horizon [SI-31]; with unverified rules it is `not_evaluated` [SI-32].
+G5: per side E[R] at costs x1 (the worse base re-chosen at x1 [SI-52]); a side at or below 0 is flagged. Kill:
+G2 at that x1 cell; if it fails, "the rule as written has no edge on this data" and any change is v2. The DSR
+uses N = 1 and equals PSR there; the report prints the spec's caveat next to it. The prop evaluator (path,
+10,000 day-block challenges, largest size, history uncertainty) runs for the judging cell and its master
+twin.
+
+### 8.5 Firm rules, day_boundary and the FundingPips placeholder
+
+`PropRules.day_boundary` sets the firm's day for the evaluator, the bootstrap and the statistics:
+`cet_midnight` (00:00 CE(S)T, FTMO, the default, unchanged results), `ny_17` (17:00 New York, the broker
+server day of D21) or `utc_midnight`. A rules .json holds PropRules fields plus an optional `_meta` block
+(firm, plan, status, verified, verified_on, sources, tags per field "[VP] source, date" = verified from a
+primary source or "[U] why" = unverified, conservative_choices, warning); `"base": "ftmo-1step"` keeps a
+preset's other fields. The FundingPips rule sheet is not verified yet, so `fundingpips-1step-flex` falls back
+to `fundingpips-1step-flex-placeholder` (propkit\presets) and every report says so. The placeholder holds no
+FundingPips number: 100,000 USD and the 2% daily-loss option are zeno's own account facts, every field is
+[U]: initial_capital, profit_target_pct (null), daily_loss_pct (0.02), daily_loss_base (initial),
+day_start_reference (max_balance_equity), max_loss_pct (null), max_loss_mode (trailing_eod_balance),
+best_day_max_share (null), best_day_basis, min_trading_days (0), target_requires_flat (true),
+breach_inclusive (true), day_boundary (ny_17). The structural choices are the conservative ones. With no
+target, P(pass) and days to target are not defined; the bootstrap then runs 60 trading days as an
+illustration [SI-55]. When the verified sheet exists, save it as `propkit\presets\fundingpips_1step_flex.json`
+(same fields, `_meta.verified: true`, a [VP] tag per field); `--rules fundingpips-1step-flex` then uses it and
+G4 is evaluated.
+
+### 8.6 Deviations from propkit conventions and the spec readings
+
+- `risk_usd` in trades.csv is the spec's R x size (D13: commission and slippage on top), not propkit's
+  "1R with costs", so a full stop is slightly worse than -1R [SI-26].
+- The prop evaluator marks an open short at the cell's ask close and its worst inside a bar at the cell's ask
+  high (`propkit.equity.equity_from_trades(..., ask_prices=)`; propkit's default, bid + the bar's open
+  spread, understates a short's drawdown when the data's spread widens inside a bar) [SI-67].
+- `propkit\specs\zeno_pullback_v1.md` folds its one non-ASCII character to `(*)` (every .md in propkit must be
+  ASCII); `zeno_pullback_v1.md.utf8` is the byte-exact copy with the recorded sha256 [SI-1].
+- The README stays one page; this section holds the detail.
+- Readings of the spec where it is silent (the full list with the rejected options is SPEC_ISSUES.md): SI-5
+  partial hours in H1; SI-6/SI-10 windows count bars of the data across gaps; SI-8 a trading day is a server
+  day with bars; SI-12 an equal low moves the pullback bar to the later one and restarts the count; SI-13 the
+  arming bar may trigger, unless the first close above the pullback bar came before arming (SI-61); SI-14/
+  SI-25 an entry is stamped and counted at the trigger close, and no fill at or after 16:30 New York of that
+  day is accepted; SI-34 levels unrounded, a price within 1e-9 USD/oz of a level is at it; SI-15 shorts
+  signal on bid bars; SI-17 +2R and +4R in one bar; SI-19 an entry at or beyond the stop is blocked; SI-20 a
+  short's breakeven is entry - commission per oz; SI-21 slippage on stop fills only; SI-24 a loss is a
+  position with net P&L < 0; SI-27 to SI-32, SI-41, SI-42 and SI-52 to SI-57 as in the report's "Spec
+  readings" list; SI-46 one setup per H bar and pullback bar; SI-47 expiry at the close of bar 8; SI-61 to
+  SI-65 (first close before arming, the 2015 range start, unscheduled news rows, D17's last bar before a
+  break, the multiplier in the spread filter) as in the report's list; SI-66 stage 1 shows the chart's entry
+  and stop; SI-67 short marks on the cell's ask; SI-68 the M1 run replays a bar only when its M1 bars reach
+  the M15 low and high; SI-69 the G0 sample must be answered on every row and belong to the data judged;
+  SI-70 a Master fill at the open of the bar holding T - 10 min (after a data gap) is closed at that open.
+
+### 8.7 D1-D24 -> function -> test
+
+| D | rule | function(s) | test(s) (tests\unit\) |
+|---|---|---|---|
+| D1 | bid+ask M15 data, holdout lock, H1 from M15, 30-day warm-up | `zeno_v1.load_m15_bidask`, `bidask_frame`, `check_before_lock`, `h1_from_m15`, `trading_days` | test_zeno_v1_data.py::test_holdout_lock_last_allowed_bar_and_first_refused_bar; test_zeno_v1_data.py::test_locked_paths_are_refused_before_anything_is_read; test_zeno_v1_data.py::test_h1_from_m15_with_a_partial_hour; test_zeno_v1_filters.py::test_warmup_is_30_trading_days; test_zeno_v1_runner.py::test_lock_and_locked_path_refusals; test_zeno_v1_data.py::test_bars_before_the_range_start_are_cut_and_counted; test_zeno_v1_data.py::test_the_period_all_starts_in_2015_and_a_late_start_is_flagged |
+| D2 | EMA30 with SMA seed, Wilder ATR14 | `indicators.ema(seed="sma")`, `zeno_v1.ema30_h1`, `atr14_m15` | test_zeno_v1_indicators.py::test_ema_sma_seed_hand_table_period_3; test_zeno_v1_indicators.py::test_ema_default_seed_is_unchanged; test_zeno_v1_indicators.py::test_atr14_wilder_with_a_gap |
+| D3 | the last closed 1h bar at a 15m close; "5 bars ago" | `h1_index_at_m15_close`, `trend_state` | test_zeno_v1_indicators.py::test_h1_bar_is_usable_at_its_close_not_before; test_zeno_v1_indicators.py::test_trend_state_slope_and_close_side; test_zeno_v1_indicators.py::test_five_bars_ago_counts_h1_bars_of_the_data_across_a_gap |
+| D4 | trend at the trigger close, sides separate | `prepare`, `_Engine._decide` | test_zeno_v1_indicators.py::test_trend_in_prepare_uses_the_last_closed_h1_bar; test_zeno_v1_filters.py::test_block_reasons_are_reported_in_order; test_zeno_v1_invariants.py::test_the_trend_is_read_from_the_h1_bar_closed_by_the_trigger_close |
+| D5 | H and L windows, ties | `setup_machines` | test_zeno_v1_setup.py::test_h_tie_goes_to_the_latest_bar; test_zeno_v1_setup.py::test_l_is_the_lowest_low_of_the_20_bars_before_h; test_zeno_v1_setup.py::test_no_setup_without_20_bars_before_h |
+| D6 | 50% wick retrace, 78.6% void on a close | `setup_machines` | test_zeno_v1_setup.py::test_wick_touch_at_exactly_50_percent_arms; test_zeno_v1_setup.py::test_no_touch_one_cent_above_50_percent; test_zeno_v1_setup.py::test_void_on_the_close_strictly_beyond_78_6_percent; test_zeno_v1_setup.py::test_void_before_arming_prevents_the_setup; test_zeno_v1_setup.py::test_an_exact_50_percent_touch_counts_despite_float_noise; test_zeno_v1_setup.py::test_a_close_exactly_at_the_void_level_does_not_void_despite_float_noise |
+| D7 | leg >= 1.5 ATR at the arming bar | `setup_machines` | test_zeno_v1_setup.py::test_leg_uses_atr_at_the_arming_bar |
+| D8 | arming, frozen H/L, a new extreme cancels | `setup_machines` | test_zeno_v1_setup.py::test_h_and_l_stay_frozen_after_h_leaves_the_window; test_zeno_v1_setup.py::test_a_new_high_cancels_an_equal_high_does_not; test_zeno_v1_setup.py::test_void_wins_over_a_new_extreme_in_the_same_bar |
+| D9 | pullback bar, 8-bar count, expiry | `setup_machines` | test_zeno_v1_setup.py::test_trigger_one_bar_after_the_low; test_zeno_v1_setup.py::test_a_new_low_restarts_the_count_and_bar_8_may_trigger; test_zeno_v1_setup.py::test_expiry_at_the_close_of_bar_8_and_bar_9_cannot_trigger_or_revive; test_zeno_v1_setup.py::test_a_close_above_the_pullback_bar_before_arming_is_the_first_close_and_is_not_chased; test_zeno_v1_setup.py::test_after_a_passed_first_close_a_new_pullback_low_restarts_the_count |
+| D10 | one shot on every blocker | `_Engine._decide`, `BLOCK_REASONS` | test_zeno_v1_filters.py::test_a_blocked_trigger_is_one_shot; test_zeno_v1_filters.py::test_block_reasons_are_reported_in_order |
+| D11 | entry fill side, entry spread, gap entry | `_Engine._decide`, `ask_side` | test_zeno_v1_entry.py::test_long_fill_stop_r_size_and_full_stop_numbers; test_zeno_v1_entry.py::test_short_fills_at_the_bid_and_its_stop_is_an_ask_level_with_the_entry_spread; test_zeno_v1_entry.py::test_entry_after_an_opening_gap_uses_the_actual_open; test_zeno_v1_invariants.py::test_rule_10_reads_the_entry_bar_open_spread_not_a_later_one |
+| D12 | ATR at the trigger close in rules 5 and 8 | `_Engine._decide` | test_zeno_v1_entry.py::test_long_fill_stop_r_size_and_full_stop_numbers; test_zeno_v1_filters.py::test_volatility_and_stop_width_edges |
+| D13 | R, lots rounded down, commission on top | `_Engine._decide`, `pullback.floor_to_lot_step` | test_zeno_v1_entry.py::test_lot_and_partial_rounding; test_zeno_v1_entry.py::test_size_below_one_lot_step_is_blocked; test_zeno_v1_entry.py::test_risk_comes_from_the_closed_balance_at_entry |
+| D14 | stop and target sides, gaps | `_Engine._open_gaps`, `_Engine._intrabar` | test_zeno_v1_exits.py::test_gap_through_the_stop_fills_at_the_open_with_slippage; test_zeno_v1_exits.py::test_gap_through_a_target_fills_at_the_level_never_better; test_zeno_v1_exits.py::test_short_time_exit_at_the_ask_open; test_zeno_v1_exits.py::test_an_exact_touch_of_the_tp1_level_fills_the_partial; test_zeno_v1_exits.py::test_an_exact_touch_of_a_short_target_on_the_ask |
+| D15 | stop first; breakeven after the partial in the same bar; M1 second run | `_Engine._intrabar`, `_Engine._ambiguous`, `resolve_with_m1` | test_zeno_v1_exits.py::test_stop_first_when_one_bar_touches_the_stop_and_a_target; test_zeno_v1_exits.py::test_breakeven_is_checked_after_the_partial_in_the_same_bar; test_zeno_v1_exits.py::test_m1_resolution_changes_a_stop_first_bar; test_zeno_v1_runner.py::test_m1_second_run_is_reported_beside_the_first; test_zeno_v1_exits.py::test_m1_bars_that_miss_the_m15_high_or_low_leave_the_bar_unresolved; test_zeno_v1_exits.py::test_m1_check_on_the_short_side_uses_the_ask |
+| D16 | partial rounding, breakeven = entry +- commission per oz | `_Engine._take_tp1`, `_Engine._decide` | test_zeno_v1_entry.py::test_lot_and_partial_rounding; test_zeno_v1_entry.py::test_breakeven_level; test_zeno_v1_entry.py::test_tp1_then_breakeven_pnl_by_hand; test_zeno_v1_exits.py::test_an_exact_touch_of_the_breakeven_level_closes_the_runner |
+| D17 | 16:30 New York exit (DST, early close), no rollover | `time_exit_instant`, `_Engine._bar`, `_assert_no_rollover` | test_zeno_v1_indicators.py::test_time_exit_instant_known_answers; test_zeno_v1_exits.py::test_time_exit_at_the_open_of_the_16_30_new_york_bar; test_zeno_v1_exits.py::test_early_close_exits_at_the_close_of_the_last_bar_before_the_break; test_zeno_v1_exits.py::test_no_position_may_cross_the_rollover; test_zeno_v1_filters.py::test_a_gap_cannot_carry_an_entry_past_16_30_new_york_of_the_trigger_day; test_zeno_v1_exits.py::test_the_last_bar_before_a_break_is_labelled_us_holiday_or_data_gap_and_counted |
+| D18 | ATR <= 2 x 20-day median, stop <= 3 ATR | `vol_medians`, `_Engine._decide` | test_zeno_v1_filters.py::test_volatility_and_stop_width_edges; test_zeno_v1_filters.py::test_vol_median_is_pooled_over_every_bar_of_the_20_days |
+| D19 | entry windows 15:00-18:00 and 20:30-24:00 SGT | `session_ok` | test_zeno_v1_filters.py::test_entry_window_edges; test_zeno_v1_indicators.py::test_session_windows_equal_the_sgt_text |
+| D20 | news blackout T-30 min .. T+60 min | `read_news_csv`, `NewsCalendar.blocked` | test_zeno_v1_filters.py::test_news_blackout_edges; test_zeno_v1_filters.py::test_news_window_to_the_second; test_zeno_v1_data.py::test_news_csv_keeps_the_four_events; test_zeno_v1_master.py::test_a_trigger_blocked_only_before_an_unscheduled_row_is_flagged_and_counted |
+| D21 | server day; 2 entries, 2 losses, -1.0%, 1 position | `server_day`, `_Engine._day`, `_Engine._decide` | test_zeno_v1_filters.py::test_two_entries_two_losses_and_minus_one_percent; test_zeno_v1_filters.py::test_daily_limits_reset_at_17_00_new_york; test_zeno_v1_filters.py::test_a_trade_open_blocks_a_new_entry |
+| D22 | cooldown 15 min from the exit stamp | `_Engine._decide` | test_zeno_v1_filters.py::test_cooldown_counts_from_the_intrabar_exit_stamp; test_zeno_v1_filters.py::test_cooldown_blocks_a_trigger_at_the_close_of_the_exit_bar; test_zeno_v1_filters.py::test_cooldown_is_per_direction |
+| D23 | Master variant: 0.4% risk, close 10 min before news | `ZenoConfig.risk_fraction`, `_Engine` | test_zeno_v1_entry.py::test_master_variant_risks_0_4_percent; test_zeno_v1_master.py::test_master_closes_a_young_position_at_the_open_of_the_bar_holding_t_minus_10; test_zeno_v1_master.py::test_master_keeps_a_position_opened_5h_or_more_before; test_zeno_v1_master.py::test_a_master_close_for_an_unscheduled_row_is_counted; test_zeno_v1_master.py::test_master_closes_at_the_entry_open_when_the_fill_bar_holds_t_minus_10; test_zeno_v1_master.py::test_master_keeps_a_fill_after_t_minus_10_when_no_bar_holds_it |
+| D24 | the firm's day in the prop evaluator | `PropRules.day_boundary`, `calendar.firm_day`, `evaluator.equity_arrays`, `bootstrap.build_day_units` | test_zeno_v1_rules_day_boundary.py::test_ny_17_and_utc_midnight_known_answers; test_zeno_v1_rules_day_boundary.py::test_evaluator_daily_floor_resets_at_17_00_new_york; test_zeno_v1_rules_day_boundary.py::test_ftmo_known_answers_unchanged; test_zeno_v1_costs.py::test_the_prop_evaluator_marks_a_short_on_the_cells_ask_high_and_close; test_zeno_v1_costs.py::test_the_ask_marks_change_nothing_where_the_ask_is_bid_plus_the_open_spread |
+| Costs | commission 5/10, S1/S2, multipliers, stop slippage | `ask_side`, `s2_spread`, `cost_model_for_cell` | test_zeno_v1_costs.py::test_multiplier_scales_spread_commission_and_slippage; test_zeno_v1_costs.py::test_s2_spread_base_in_the_engine; test_zeno_v1_costs.py::test_slippage_applies_to_stop_fills_only; test_zeno_v1_runner.py::test_the_cost_multiplier_also_tightens_the_spread_filter_and_the_grid_shows_it |
+| Reports, gates | metrics, judging cell, G0-G5, kill | `zeno_report.position_metrics`, `daily_metrics`, `worse_base`, `gates_from`, `g4_gate` | test_zeno_v1_runner.py::test_metric_definitions_on_a_hand_built_cell; test_zeno_v1_runner.py::test_gates_known_answers_on_a_hand_built_grid; test_zeno_v1_runner.py::test_judging_cell_picks_the_worse_base; test_zeno_v1_runner.py::test_period_assignment_by_server_day; test_zeno_v1_runner.py::test_g4_uses_an_unlimited_horizon; test_zeno_v1_runner.py::test_a_0_01_lot_position_that_reaches_2r_did_not_fill_the_partial |
+| Runner | G0 order, outputs, refusals | `cli.cmd_zeno_signals`, `cli.cmd_zeno_run`, `zeno_report.signals_stage`, `run_stage` | test_zeno_v1_runner.py::test_signals_stage_writes_no_results; test_zeno_v1_runner.py::test_run_refuses_without_g0_confirmed; test_zeno_v1_runner.py::test_refuses_writing_outside_out; test_zeno_v1_runner.py::test_run_writes_every_file_and_gates_json; test_zeno_v1_runner.py::test_stage_1_files_never_name_a_check_that_needs_earlier_trades; test_zeno_v1_runner.py::test_a_g0_sample_that_can_no_longer_reach_18_of_20_is_refused; test_zeno_v1_runner.py::test_write_staged_rolls_back_when_a_rename_fails; test_zeno_v1_runner.py::test_g0_sample_shows_the_chart_prices_not_the_cost_cell_prices; test_zeno_v1_runner.py::test_an_answered_g0_sample_needs_every_row_answered_and_18_y; test_zeno_v1_runner.py::test_run_checks_that_the_g0_sample_belongs_to_the_data_it_judges; test_zeno_v1_runner.py::test_signals_refuses_to_overwrite_an_answered_g0_sample |
+| Invariants | mirror, causality, timing | engine | test_zeno_v1_invariants.py::test_long_short_mirror_is_exact; test_zeno_v1_invariants.py::test_decisions_are_causal_under_truncation; test_zeno_v1_runner.py::test_timing_guard_signals_on_257k_bars; test_zeno_v1_runner.py::test_timing_guard_full_single_cell_on_257k_bars; test_zeno_v1_invariants.py::test_everything_known_by_an_instant_survives_replacing_all_later_prices |

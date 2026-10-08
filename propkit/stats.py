@@ -15,7 +15,8 @@ Conventions used by every function here:
     count of days; to use annual figures divide SR by sqrt(q) and a variance of SRs by q);
   * money in USD; *_pct fields are PERCENT (3.0 = 3%); *_ret fields are return fractions (negative = loss);
   * days are prop days (propkit.calendar.prop_day: the CE(S)T calendar date) as int64 days since
-    1970-01-01, unless by="utc_day" is asked for.
+    1970-01-01, unless by="utc_day" is asked for, or a day boundary of propkit.calendar.DAY_BOUNDARIES
+    ("cet_midnight" = the prop day, "ny_17" = 17:00 New York, "utc_midnight" = the UTC date).
 
 References (cited again at each formula):
   Lo, A. W. (2002). The Statistics of Sharpe Ratios. Financial Analysts Journal 58(4), 36-52.
@@ -45,7 +46,7 @@ from propkit import bars as bars_mod
 from propkit import calendar
 
 EULER_GAMMA = 0.5772156649015329       # Euler-Mascheroni constant (the contract's 0.5772156649)
-DAY_KEYS = ("prop_day", "utc_day")
+DAY_KEYS = ("prop_day", "utc_day") + calendar.DAY_BOUNDARIES
 KURTOSIS_TOL = 1e-9                     # relative slack on Pearson's bound kurt >= 1 + skew^2
 WORST_TOL_USD = 1e-6                    # equity_worst may exceed equity_close by this much (float noise)
 _STD_NORMAL = NormalDist()              # immutable standard normal: Phi = cdf, Phi^-1 = inv_cdf
@@ -400,6 +401,8 @@ def _day_keys(t: np.ndarray, by: str) -> np.ndarray:
     if by == "utc_day":
         calendar.prop_day(t)                          # same range check as prop_day
         return t // calendar.SECONDS_PER_DAY
+    if by in calendar.DAY_BOUNDARIES:
+        return np.asarray(calendar.firm_day(t, by), dtype=np.int64)
     raise ValueError(f"by must be one of {DAY_KEYS}, got {by!r}")
 
 
@@ -411,8 +414,10 @@ def daily_returns_from_equity(equity: pd.DataFrame, C0: float, by: str = "prop_d
     Days without bars (weekends, holidays) are skipped, so a Monday's return runs from the previous
     day with bars (normally Friday). Days: by="prop_day" (default) keys each bar by
     propkit.calendar.prop_day(time), the CE(S)T calendar date of its open (00:00 CE(S)T = 22:00 UTC in
-    summer, 23:00 UTC in winter); by="utc_day" uses the UTC date. In the US-only DST shift weeks the
-    Sunday reopen hour is its own prop day (see propkit.calendar): it is kept as a (short) day.
+    summer, 23:00 UTC in winter); by="utc_day" uses the UTC date; by= a day boundary ("cet_midnight" = the
+    prop day, "ny_17" = 17:00 New York to 17:00 New York, "utc_midnight") uses propkit.calendar.firm_day.
+    In the US-only DST shift weeks the Sunday reopen hour is its own prop day (see propkit.calendar): it is
+    kept as a (short) day.
 
     equity: EQUITY frame (only time, int64 UTC epoch seconds of the bar open, sorted and unique, and
     equity_close, USD, are used); C0: initial capital in USD (> 0). A closing equity <= 0 before the
@@ -516,7 +521,7 @@ def _max_drawdown(t: np.ndarray, peak: np.ndarray, low: np.ndarray, c0: float) -
             "time": int(t[k]) if hit else None, "time_utc": calendar.utc_str(int(t[k])) if hit else None}
 
 
-def drawdown_stats(equity: pd.DataFrame, C0: float, alpha: float = 0.05) -> dict[str, Any]:
+def drawdown_stats(equity: pd.DataFrame, C0: float, alpha: float = 0.05, by: str = "prop_day") -> dict[str, Any]:
     """Drawdowns, underwater time and expected shortfall of an EQUITY path (USD; *_pct are PERCENT).
 
     Intrabar max drawdown (needs the equity_worst column; None fields without it):
@@ -534,10 +539,11 @@ def drawdown_stats(equity: pd.DataFrame, C0: float, alpha: float = 0.05) -> dict
       (default 0.05; a return, negative = loss), worst_day_ret and worst_day_date.
 
     equity: EQUITY frame (time and equity_close required, equity_worst optional; equity_worst above
-    equity_close raises ValueError); C0: initial capital in USD (> 0). Returns a JSON-serialisable dict.
+    equity_close raises ValueError); C0: initial capital in USD (> 0); by: the day key of the daily
+    returns (daily_returns_from_equity). Returns a JSON-serialisable dict.
     """
     t, close, c0 = _equity_inputs(equity, C0)
-    daily = daily_returns_from_equity(equity, c0)
+    daily = daily_returns_from_equity(equity, c0, by)
     out: dict[str, Any] = {"initial_capital": c0, "n_bars": int(t.size), "n_days": int(len(daily))}
     if "equity_worst" in equity.columns:
         worst = _float_column(equity, "equity_worst")

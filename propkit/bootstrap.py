@@ -5,7 +5,7 @@ is about exactly that clustering. Shuffling single trades spreads a bad day's lo
 understates P(daily breach); resampling whole prop days keeps each day's intraday path intact.
 
 Day units (build_day_units). From a historical EQUITY path (see propkit.evaluator for the frame), each
-prop day with bars (00:00 CE(S)T to 00:00 CE(S)T) becomes one unit:
+prop day with bars (00:00 CE(S)T to 00:00 CE(S)T, or the rules' day_boundary: see below) becomes one unit:
   u_start     = E_00:00 - B_00:00, the floating PnL at the day boundary (USD);
   d_close[k]  = equity_close of the day's bar k - E_00:00 (USD);
   d_worst[k]  = equity_worst of bar k - E_00:00 (USD);
@@ -77,6 +77,12 @@ depends on the particular history (a few hundred days); history_uncertainty() me
 the history's blocks themselves and re-running the bootstrap (an outer bootstrap). When p = 0 or 1 the MC
 error is 0; read it as p < 3 / n_sims (or > 1 - 3 / n_sims) at 95% (rule of three).
 Quantiles of days to target use numpy's default linear interpolation.
+
+Day boundary: the units are cut at the firm's day boundary (PropRules.day_boundary; propkit.calendar.firm_day:
+"cet_midnight" = 00:00 CE(S)T by default, "ny_17" = 17:00 New York, "utc_midnight"). bootstrap_challenges,
+max_size and history_uncertainty build their units with the rules' boundary; prebuilt units must have been
+built with the same one (DayUnits.day_boundary), else ValueError. Week blocks keep the Sunday..Saturday
+rule for every boundary (under "ny_17" the Sunday reopen already belongs to Monday's day).
 """
 from __future__ import annotations
 
@@ -121,7 +127,8 @@ class DayUnits:
 
     Shapes: n = number of prop days with bars, L = bars in the longest day. trade_pnl / trade_count
     are filled only when TRADES were given (needed by mode "trades"). flat_start (bool per day): no
-    position open at the day boundary; None (hand-built units) means u_start == 0.
+    position open at the day boundary; None (hand-built units) means u_start == 0. day_boundary: the
+    firm-day boundary the units were cut at (propkit.calendar.DAY_BOUNDARIES).
     """
 
     initial_capital: float
@@ -138,6 +145,7 @@ class DayUnits:
     trade_pnl: np.ndarray | None = None
     trade_count: np.ndarray | None = None
     flat_start: np.ndarray | None = None
+    day_boundary: str = "cet_midnight"
 
     @property
     def n_units(self) -> int:
@@ -200,7 +208,7 @@ class DayUnits:
             u_start=np.where(block_start, 0.0, self.u_start[idx]), d_close=self.d_close[idx],
             d_worst=self.d_worst[idx], d_balance=self.d_balance[idx], flat=self.flat[idx],
             entered=self.entered[idx], traded=self.traded[idx], week=self.week[idx],
-            flat_start=np.asarray(block_start, dtype=bool))
+            flat_start=np.asarray(block_start, dtype=bool), day_boundary=self.day_boundary)
 
     @property
     def d_close_last(self) -> np.ndarray:
@@ -221,8 +229,12 @@ def week_id(day) -> np.ndarray:
 
 
 def build_day_units(equity: pd.DataFrame, initial_capital: float,
-                    trades: pd.DataFrame | None = None) -> DayUnits:
+                    trades: pd.DataFrame | None = None,
+                    day_boundary: str = calendar.DEFAULT_DAY_BOUNDARY) -> DayUnits:
     """Cut a historical EQUITY path into prop-day units (USD); see the module docstring.
+
+    day_boundary: where a day starts (propkit.calendar.firm_day; default "cet_midnight", 00:00 CE(S)T);
+    pass rules.day_boundary.
 
     equity: EQUITY frame (validated as in evaluate_path; the account is flat at initial_capital before the
     first bar); initial_capital: C0 in USD; trades: optional TRADES (entry_time gives trading days
@@ -231,7 +243,7 @@ def build_day_units(equity: pd.DataFrame, initial_capital: float,
     propkit.evaluator.equity_arrays); they start the flat-to-flat blocks, so u_start = 0 there.
     """
     c0 = float(initial_capital)
-    a = equity_arrays(equity, c0)
+    a = equity_arrays(equity, c0, day_boundary)
     entry = entry_flags(a, trades)
     bal, close, worst, flat = a["balance"], a["close"], a["worst"], a["flat"]
     day, day_id, starts = a["day"], a["day_id"], a["starts"]
@@ -258,7 +270,7 @@ def build_day_units(equity: pd.DataFrame, initial_capital: float,
         initial_capital=c0, day=unit_days, n_bars=n_bars.astype(np.int64), u_start=e00 - b00,
         d_close=d_close, d_worst=d_worst, d_balance=bal[at] - b00[:, None], flat=flat[at],
         entered=entered_bar[at], traded=entered_bar[at[:, -1]], week=week_id(unit_days),
-        trade_pnl=trade_pnl, trade_count=trade_count, flat_start=flat_start)
+        trade_pnl=trade_pnl, trade_count=trade_count, flat_start=flat_start, day_boundary=a["day_boundary"])
 
 
 def _trade_pool(trades: pd.DataFrame, unit_days: np.ndarray, times: np.ndarray, bar_day: np.ndarray,
@@ -490,6 +502,10 @@ def _simulate(units: DayUnits, rules: PropRules, mode: str, n_sims: int, seed: i
     if abs(rules.initial_capital - units.initial_capital) > 1e-9 * units.initial_capital:
         raise ValueError(f"the rules' initial capital {rules.initial_capital:,.2f} differs from the one the day "
                          f"units were built with ({units.initial_capital:,.2f})")
+    if units.day_boundary != rules.day_boundary:
+        raise ValueError(f"the day units were cut at the day boundary {units.day_boundary!r} but the rules use "
+                         f"{rules.day_boundary!r}; build them with build_day_units(..., "
+                         f"day_boundary=rules.day_boundary)")
     c0 = units.initial_capital
     trading_horizon = horizon is not None and horizon_unit == "trading"
     market_horizon = horizon if (horizon is not None and not trading_horizon) else None
@@ -749,7 +765,7 @@ def bootstrap_challenges(equity: pd.DataFrame | None, rules: PropRules, trades: 
     if units is None:
         if equity is None:
             raise ValueError("pass the EQUITY frame (or prebuilt units=build_day_units(...))")
-        units = build_day_units(equity, rules.initial_capital, trades)
+        units = build_day_units(equity, rules.initial_capital, trades, rules.day_boundary)
     sim = _simulate(units, rules, mode, n_sims, seed, horizon, m, unit)
     return _result(sim, units, rules, mode, seed, horizon, m, unit)
 
@@ -821,7 +837,7 @@ def max_size(equity: pd.DataFrame | None, rules: PropRules, trades: pd.DataFrame
     if units is None:
         if equity is None:
             raise ValueError("pass the EQUITY frame (or prebuilt units=build_day_units(...))")
-        units = build_day_units(equity, rules.initial_capital, trades)
+        units = build_day_units(equity, rules.initial_capital, trades, rules.day_boundary)
     cache: dict[float, BootstrapResult] = {}
 
     def run(mult: float) -> BootstrapResult:
@@ -968,7 +984,7 @@ def history_uncertainty(equity: pd.DataFrame | None, rules: PropRules, trades: p
     if units is None:
         if equity is None:
             raise ValueError("pass the EQUITY frame (or prebuilt units=build_day_units(...))")
-        units = build_day_units(equity, rules.initial_capital, trades)
+        units = build_day_units(equity, rules.initial_capital, trades, rules.day_boundary)
     keys = ("p_pass", "p_breach_daily", "p_breach_max", "p_breach_any")
     vals: dict[str, list[float]] = {k: [] for k in keys}
     vals["max_size_multiplier"] = []

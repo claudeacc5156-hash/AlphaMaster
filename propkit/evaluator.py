@@ -30,6 +30,9 @@ Conventions (each is a choice; they are the same in propkit.bootstrap)
     days are 23 h and 25 h long). In the US-only DST shift weeks the Sunday 18:00 New York reopen is
     22:00 UTC = 23:00 CET Sunday, so that first hour is its own (Sunday) prop day. Bars must not cross
     00:00 CE(S)T (true for M15/M30/H1 bars that open on the hour); a frame where they do is refused.
+    With rules.day_boundary "ny_17" or "utc_midnight" the day is propkit.calendar.firm_day instead (17:00
+    New York or 00:00 UTC) and everything below that says 00:00 means that boundary; the default
+    "cet_midnight" is exactly the CE(S)T prop day above.
   * Day-start values: B_00:00 = balance at the end of the last bar before the day (C0 for the first
     day); E_00:00 likewise from equity_close. Floors follow rules.daily_floor / rules.max_floor; the
     trailing max floor uses the highest B_00:00 of the days seen so far (days without bars cannot change
@@ -105,16 +108,19 @@ def _time_col(values, what: str) -> np.ndarray:
     return arr
 
 
-def equity_arrays(equity: pd.DataFrame, initial_capital: float) -> dict[str, Any]:
+def equity_arrays(equity: pd.DataFrame, initial_capital: float,
+                  day_boundary: str = calendar.DEFAULT_DAY_BOUNDARY) -> dict[str, Any]:
     """Validate an EQUITY frame and return its columns as numpy arrays plus derived day indices.
+
+    day_boundary: where a day starts (propkit.calendar.firm_day; default "cet_midnight" = prop_day).
 
     Returns a dict with time, balance, close (equity_close), worst (equity_worst), units (units_open, with
     |units| <= 1e-9 oz set to 0), flat (bool per bar: units == 0 and |equity_close - balance| <= 1e-6 USD,
-    so a net-zero hedge is not flat), commission, realised (zeros if absent), day (prop day per bar),
+    so a net-zero hedge is not flat), commission, realised (zeros if absent), day (firm day per bar),
     day_id (0-based index of the bar's day among days with bars), starts (first bar index of each day),
     bar_seconds (inferred, or None for one bar). Raises ValueError (with the row and UTC time) for:
     missing columns, unsorted or duplicate times, non-finite values, equity_worst above equity_close,
-    an inferred bar size that is a gap (propkit.bars.bar_size_problem), bars crossing 00:00 CE(S)T, or a
+    an inferred bar size that is a gap (propkit.bars.bar_size_problem), bars crossing the day boundary, or a
     start that does not match initial_capital: with the ledger columns realised_usd, commission_usd and
     swap_usd, the balance before the first bar (balance - realised_usd + commission_usd - swap_usd of row
     0) must equal initial_capital to 0.01 USD; without them the first bar's equity_close must be within
@@ -149,7 +155,8 @@ def equity_arrays(equity: pd.DataFrame, initial_capital: float) -> dict[str, Any
                          f"{out['worst'][i]:.2f} above equity_close {out['close'][i]:.2f}; equity_worst is "
                          "the LOWEST equity inside the bar")
     _check_start(equity, out, float(initial_capital), what)
-    day = np.asarray(calendar.prop_day(t), dtype=np.int64)
+    boundary = calendar.check_day_boundary(day_boundary)
+    day = np.asarray(calendar.firm_day(t, boundary), dtype=np.int64)
     bar_seconds = None
     if t.size > 1:
         steps = np.diff(t)
@@ -159,14 +166,16 @@ def equity_arrays(equity: pd.DataFrame, initial_capital: float) -> dict[str, Any
         problem = bar_size_problem(bar_seconds, int(counts[k]), int(t.size))
         if problem:
             raise ValueError(f"{what}: {problem}")
-        end_day = np.asarray(calendar.prop_day(t + bar_seconds - 1), dtype=np.int64)
+        end_day = np.asarray(calendar.firm_day(t + bar_seconds - 1, boundary), dtype=np.int64)
         cross = end_day != day
         if cross.any():
             i = int(np.flatnonzero(cross)[0])
             raise ValueError(f"{what}: the bar at {calendar.utc_str(int(t[i]))} ({bar_seconds} s) crosses "
-                             "00:00 CE(S)T, the prop-day boundary; use M15, M30 or H1 bars that open on the hour")
+                             f"{calendar.boundary_label(boundary)}, the prop-day boundary; use M15, M30 or H1 bars "
+                             "that open on the hour")
     new_day = np.r_[True, day[1:] != day[:-1]]
-    out.update(day=day, day_id=np.cumsum(new_day) - 1, starts=np.flatnonzero(new_day), bar_seconds=bar_seconds)
+    out.update(day=day, day_id=np.cumsum(new_day) - 1, starts=np.flatnonzero(new_day), bar_seconds=bar_seconds,
+               day_boundary=boundary)
     return out
 
 
@@ -415,13 +424,13 @@ def evaluate_path(equity: pd.DataFrame, trades: pd.DataFrame | None, rules: Prop
 
     equity: EQUITY frame (USD; time = bar open, UTC epoch s); trades: TRADES frame or None (entry_time
     gives trading days; pnl_usd and risk_usd give the R summary); rules: PropRules (C0 =
-    rules.initial_capital, the balance before the first bar). Returns PathResult. Vectorised: one pass
-    of numpy operations over all bars.
+    rules.initial_capital, the balance before the first bar; rules.day_boundary decides the days).
+    Returns PathResult. Vectorised: one pass of numpy operations over all bars.
     """
     if not isinstance(rules, PropRules):
         raise ValueError("rules must be a PropRules (see propkit.rules: ftmo_1step, ftmo_2step, custom)")
     c0 = rules.initial_capital
-    a = equity_arrays(equity, c0)
+    a = equity_arrays(equity, c0, rules.day_boundary)
     t, bal, close, worst, units = a["time"], a["balance"], a["close"], a["worst"], a["units"]
     day, day_id, starts = a["day"], a["day_id"], a["starts"]
     n, n_days = t.size, starts.size

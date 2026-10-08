@@ -8,6 +8,12 @@ Commands
             decisions.csv (one row per raw signal, entered or the reason it was skipped).
   rules     print the rule presets.
   selftest  run the known-answer gates (a few seconds) and print PASS/FAIL per gate.
+  zeno-v1   zeno_pullback_v1 (propkit.zeno_v1, propkit.zeno_report), in two stages:
+            signals  M15 bid/ask bars + the news calendar -> signals.csv, decisions.csv, g0_sample.csv and a
+                     counts-only report (no P&L, R or outcome) for the G0 chart check;
+            run      after the G0 check (--g0-confirmed): the 24-cell pre-registered grid, the prop evaluator
+                     and gates.json (G0-G5, kill) -> report.md, report.json, gates.json, trades.csv,
+                     positions.csv, decisions.csv, grid.csv, positions_all_cells.csv (m1_diff.csv with M1).
 
 Exit codes: 0 success; 1 a selftest gate failed; 2 a usage or data error (a bad option, a missing or
 invalid file, a locked-holdout path, an output that would overwrite an input or leave --out), and also
@@ -22,7 +28,9 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import hashlib
 import json
+import math
 import os
 import sys
 import time
@@ -40,6 +48,8 @@ from propkit import calendar
 from propkit import stress as stress_mod
 from propkit import report as report_mod
 from propkit import rules as rules_mod
+from propkit import zeno_report
+from propkit import zeno_v1 as zv
 from propkit.costs import CostModel
 from propkit.equity import equity_from_positions, equity_from_trades
 from propkit.pullback import PullbackSpec, generate_trades_detailed
@@ -161,22 +171,23 @@ def build_rules(name: str, capital: float | None = None, rules_file: str | None 
                 target: float | None = None) -> PropRules:
     """PropRules from the --rules / --capital / --rules-file / --target options.
 
-    name: "ftmo-1step", "ftmo-2step", "custom" (needs rules_file) or a path to a .json file. A rules JSON
-    holds PropRules fields (fractions: 0.03 = 3%); with a "base" key naming a preset it holds only the fields
-    to change. capital (USD) replaces initial_capital; target (a fraction) replaces profit_target_pct.
+    name: "ftmo-1step", "ftmo-2step", a firm preset (rules.FIRM_PRESET_NAMES, read from propkit/presets),
+    "custom" (needs rules_file) or a path to a .json file. A rules JSON holds PropRules fields (fractions:
+    0.03 = 3%); with a "base" key naming a preset it holds only the fields to change. capital (USD) replaces
+    initial_capital; target (a fraction) replaces profit_target_pct.
     """
     key = str(name).strip()
     low = key.lower().replace("_", "-")
-    if low in rules_mod.PRESET_NAMES and rules_file is None:
+    if low in rules_mod.ALL_PRESET_NAMES and rules_file is None:
         data: dict[str, Any] = {"base": low}
     elif low == "custom" or rules_file is not None:
-        if low not in rules_mod.PRESET_NAMES and low != "custom":
+        if low not in rules_mod.ALL_PRESET_NAMES and low != "custom":
             raise UsageError("give either --rules FILE.json or --rules custom --rules-file FILE.json, not both")
         if rules_file is None:
             raise UsageError("--rules custom needs --rules-file FILE.json (the PropRules fields; see "
                              "'python -m propkit rules')")
         data = _read_json_object(rules_file, "rules file")
-        if low in rules_mod.PRESET_NAMES:
+        if low in rules_mod.ALL_PRESET_NAMES:
             file_base = data.get("base")
             if file_base is not None and str(file_base).strip().lower().replace("_", "-") != low:
                 raise UsageError(f"--rules says {low} but the rules file {Path(rules_file).name} says base "
@@ -185,8 +196,8 @@ def build_rules(name: str, capital: float | None = None, rules_file: str | None 
     elif low.endswith(".json"):
         data = _read_json_object(key, "rules file")
     else:
-        raise UsageError(f"unknown --rules {name!r}; use ftmo-1step, ftmo-2step, custom (with --rules-file) "
-                         "or a .json file")
+        raise UsageError(f"unknown --rules {name!r}; use {', '.join(rules_mod.ALL_PRESET_NAMES)}, custom (with "
+                         "--rules-file) or a .json file")
     overrides = {k: v for k, v in data.items() if k != "base"}
     if capital is not None:
         overrides["initial_capital"] = capital
@@ -277,6 +288,7 @@ def _inside(folder: Path, file: Path) -> Path:
 
 
 TMP_PREFIX = "_partial_"
+BACKUP_PREFIX = "_previous_"
 DECISIONS_HEADER = "signal_time,signal_bar,side,entry_time,status,trade_id"
 
 
@@ -284,15 +296,17 @@ def write_outputs(out_dir: Path, report: dict[str, Any], equity, trades, days=No
                   decisions=None) -> list[Path]:
     """Write report.json, report.md, equity.csv, trades.csv, days.csv (and decisions.csv) inside out_dir.
 
-    All-or-nothing: every file is first written as _partial_<name> and the set is renamed to the final
-    names only after every file was written, so an error (a full disk, a text column that cannot be
-    written) cannot leave a half-written mix of this run and an earlier one; the partial files are
-    removed. Text is ASCII; any other character in a text column becomes a backslash escape (\\uXXXX).
+    All-or-nothing (write_staged): every file is first written as _partial_<name>, every earlier output
+    must be replaceable, and the set is swapped in only then; a failed swap is rolled back, so an error (a
+    full disk, a text column that cannot be written, a file held open by another program) cannot leave a
+    half-written mix of this run and an earlier one. Text is ASCII; any other character in a text column
+    becomes a backslash escape (\\uXXXX).
     """
+    boundary = (report.get("rules") or {}).get("day_boundary") or calendar.DEFAULT_DAY_BOUNDARY
     jobs = [("report.json", lambda p: p.write_text(json.dumps(report, indent=2, ensure_ascii=True, allow_nan=False)
                                                    + "\n", encoding="ascii")),
             ("report.md", lambda p: p.write_text(report_mod.render_markdown(report), encoding="ascii")),
-            ("equity.csv", lambda p: adapters.write_equity_csv(equity, p)),
+            ("equity.csv", lambda p: adapters.write_equity_csv(equity, p, day_boundary=boundary)),
             ("trades.csv", lambda p: adapters.write_trades_csv(trades, p))]
     if days is not None:
         jobs.append(("days.csv", lambda p: days.to_csv(p, index=False, encoding="ascii", errors="backslashreplace",
@@ -306,6 +320,36 @@ def write_outputs(out_dir: Path, report: dict[str, Any], equity, trades, days=No
                 dec["entry_time_utc"] = [calendar.utc_str(int(t)) if t >= 0 else "" for t in et]
             dec.to_csv(p, index=False, encoding="ascii", errors="backslashreplace", lineterminator="\n")
         jobs.append(("decisions.csv", write_decisions))
+    return write_staged(out_dir, jobs)
+
+
+def _check_replaceable(final: Path) -> None:
+    """Raise OSError when an earlier output at `final` cannot be replaced: a folder (or anything but a regular
+    file) under that name, or a file another program holds open (on Windows, opening it for writing fails
+    with a sharing violation, e.g. a CSV open in Excel). Nothing is changed by the check."""
+    if not os.path.lexists(final):
+        return
+    if final.is_symlink() or not final.is_file():
+        raise OSError(f"cannot replace {final}: it is a folder or not a regular file; move it out of the output "
+                      "folder and run again (nothing was changed)")
+    try:
+        with open(final, "ab"):
+            pass
+    except OSError as e:
+        raise OSError(f"cannot replace {final} ({type(e).__name__}: {e}); close it in every program that has it "
+                      "open (Excel, an editor) and run again (nothing was changed)") from e
+
+
+def write_staged(out_dir: Path, jobs: Sequence[tuple[str, Any]]) -> list[Path]:
+    """Write each (name, writer(path)) job inside out_dir, all or nothing (see write_outputs).
+
+    1. every file is written as _partial_<name>; 2. every earlier output under a final name must be
+    replaceable (_check_replaceable: not a folder, not held open by another program); 3. the set is swapped
+    in: an earlier output is moved to _previous_<name>, the partial file to <name>, and the backups are
+    deleted once all names are swapped. On an error in 1 or 2 the partial files are removed and nothing of the
+    earlier run is touched; on an error in 3 the swap is rolled back (new files removed, backups moved back)
+    and the OSError names the file that failed (and any file that could not be restored, with the name of
+    its backup). A name that would leave out_dir is refused."""
     staged: list[tuple[Path, Path]] = []
     try:
         for name, write in jobs:
@@ -313,15 +357,65 @@ def write_outputs(out_dir: Path, report: dict[str, Any], equity, trades, days=No
             tmp = _inside(out_dir, out_dir / f"{TMP_PREFIX}{name}")
             write(tmp)
             staged.append((tmp, final))
+        for _, final in staged:
+            _check_replaceable(final)
     except BaseException:
         for tmp, _ in staged:
             tmp.unlink(missing_ok=True)
         for name, _ in jobs:
             (out_dir / f"{TMP_PREFIX}{name}").unlink(missing_ok=True)
         raise
-    for tmp, final in staged:
-        os.replace(tmp, final)
+    backups: list[tuple[Path, Path]] = []
+    done: list[Path] = []
+    current = None
+    try:
+        for tmp, final in staged:
+            current = final
+            if final.exists():
+                bak = _inside(out_dir, out_dir / f"{BACKUP_PREFIX}{final.name}")
+                os.replace(final, bak)
+                backups.append((bak, final))
+            os.replace(tmp, final)
+            done.append(final)
+    except BaseException as e:
+        not_restored = _roll_back(staged, backups, done)
+        if not isinstance(e, Exception):
+            raise
+        msg = (f"could not replace {current} ({type(e).__name__}: {e}); every output was put back as it was "
+               "before this run" if not not_restored else
+               f"could not replace {current} ({type(e).__name__}: {e}); the rollback also failed for "
+               + ", ".join(not_restored) + ": rename each backup to its name by hand")
+        raise OSError(msg + ". Close the file in every program that has it open (Excel, an editor) and run "
+                      "again.") from e
+    for bak, _ in backups:
+        bak.unlink(missing_ok=True)
     return [final for _, final in staged]
+
+
+def _roll_back(staged: Sequence[tuple[Path, Path]], backups: Sequence[tuple[Path, Path]],
+               done: Sequence[Path]) -> list[str]:
+    """Undo a partial swap of write_staged: remove the new files that had no earlier version, move every
+    backup back to its name and remove the partial files left. Returns '<name> (backup <backup name>)' for
+    each earlier output that could not be put back."""
+    had_backup = {final for _, final in backups}
+    for final in done:
+        if final not in had_backup:
+            try:
+                final.unlink(missing_ok=True)
+            except OSError:
+                pass
+    failed = []
+    for bak, final in backups:
+        try:
+            os.replace(bak, final)
+        except OSError:
+            failed.append(f"{final.name} (backup {bak.name})")
+    for tmp, _ in staged:
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
+    return failed
 
 
 def stale_decisions(out_dir: Path) -> tuple[Path | None, bool]:
@@ -384,7 +478,8 @@ def make_parser() -> argparse.ArgumentParser:
     top = _Parser(prog=PROG, description="propkit: what does this trade list or position series "
                   "do to a prop-firm account? RESEARCH ONLY - not trading advice.")
     top.add_argument("--version", action="version", version=f"propkit {propkit.__version__}")
-    sub = top.add_subparsers(dest="command", metavar="{evaluate,pullback,rules,selftest}", parser_class=_Parser)
+    sub = top.add_subparsers(dest="command", metavar="{evaluate,pullback,rules,selftest,zeno-v1}",
+                             parser_class=_Parser)
 
     ev = sub.add_parser("evaluate", help="evaluate a trade list or a position series")
     src = ev.add_mutually_exclusive_group(required=True)
@@ -407,7 +502,61 @@ def make_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("rules", help="print the rule presets")
     sub.add_parser("selftest", help="run the known-answer gates and print PASS/FAIL per gate")
+    _add_zeno(sub)
     return top
+
+
+def _zeno_inputs(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--m15-bid", required=True, help="XAUUSD M15 BID bars: Parquet or CSV (time, open, high, low, "
+                                                     "close) or a dukascopy-node CSV (timestamp in ms); UTC; every "
+                                                     "bar must open before 2025-09-28 00:00 UTC (the holdout lock)")
+    p.add_argument("--m15-ask", required=True, help="the matching M15 ASK bars (the same bars as --m15-bid)")
+    p.add_argument("--news", required=True, help="US macro calendar CSV (event, ..., datetime_utc, kind); its NFP, "
+                                                 "CPI, PPI and FOMC rows are the news blackout (D20)")
+    p.add_argument("--out", required=True, help="output folder (created if missing), such as logs\\zeno_g0")
+
+
+def _add_zeno(sub) -> None:
+    """The zeno-v1 command with its two stages, signals and run."""
+    zs = sub.add_parser("zeno-v1", help="zeno_pullback_v1: signals for the G0 check, then the pre-registered run")
+    zsub = zs.add_subparsers(dest="zeno_command", metavar="{signals,run}", parser_class=_Parser)
+    sg = zsub.add_parser("signals", help="stage 1: signals, decisions and the G0 sample (no P&L, R or outcome)")
+    _zeno_inputs(sg)
+    sg.add_argument("--sample", type=_positive_int, default=zeno_report.G0_SAMPLE_SIZE,
+                    help="eligible signals to sample for the chart check (default 20)")
+    sg.add_argument("--seed", type=int, default=zeno_report.DEFAULT_SEED, help="sample seed (default 7)")
+    sg.add_argument("--variant", choices=zv.VARIANTS, default=zeno_report.STAGE1_CELL.variant,
+                    help="the declared cell's variant (default evaluation)")
+    sg.add_argument("--commission", type=float, choices=zv.COMMISSIONS,
+                    default=zeno_report.STAGE1_CELL.commission_rt_per_lot,
+                    help="the declared cell's commission, USD per lot round trip (default 10)")
+    sg.add_argument("--spread-base", choices=zv.SPREAD_BASES, default=zeno_report.STAGE1_CELL.spread_base,
+                    help="the declared cell's spread base (default S1, the data's spread)")
+    sg.add_argument("--cost-mult", type=float, choices=zv.COST_MULTS, default=zeno_report.STAGE1_CELL.cost_mult,
+                    help="the declared cell's cost multiplier (default 1.5)")
+    sg.add_argument("--capital", type=_positive_float, default=100_000.0, help="account size, USD (default 100000)")
+    rn = zsub.add_parser("run", help="stage 2: the 24-cell grid, the prop evaluator and the gates (only after the "
+                                     "G0 check: --g0-confirmed)")
+    _zeno_inputs(rn)
+    rn.add_argument("--g0-confirmed", action="store_true",
+                    help="you checked the signals of g0_sample.csv on a chart and agree with at least 18 of 20")
+    rn.add_argument("--g0-sample", default=None, help="the g0_sample.csv you checked (its sha256 and your y/n "
+                                                      "answers in agree_y_n are recorded in gates.json)")
+    rn.add_argument("--rules", default="fundingpips-1step-flex",
+                    help="firm rules: fundingpips-1step-flex (default; the placeholder until the verified sheet is "
+                         "installed), another preset, or a rules .json file")
+    rn.add_argument("--reference-rules", default=None, help="also run the judging cell under these rules for "
+                                                            "comparison (e.g. ftmo-1step); off by default")
+    rn.add_argument("--capital", type=_positive_float, default=None,
+                    help="account size, USD (default: the rules' initial capital, 100000)")
+    rn.add_argument("--m1-bid", default=None, help="M1 BID bars for the D15 second run (with --m1-ask)")
+    rn.add_argument("--m1-ask", default=None, help="M1 ASK bars for the D15 second run (with --m1-bid)")
+    rn.add_argument("--n-sims", type=_positive_int, default=boot_mod.DEFAULT_N_SIMS,
+                    help="bootstrap simulations (default 10000)")
+    rn.add_argument("--seed", type=int, default=zeno_report.DEFAULT_SEED, help="random seed (default 7)")
+    rn.add_argument("--history-reps", type=_nonneg_int, default=boot_mod.DEFAULT_HISTORY_REPS,
+                    help=f"outer bootstrap replicates for the history uncertainty (default "
+                         f"{boot_mod.DEFAULT_HISTORY_REPS}; 0 = skip)")
 
 
 def _rules_path(rules_arg: str) -> str | None:
@@ -581,6 +730,16 @@ def cmd_rules(args) -> int:
         _say(f"--rules {name}")
         for line in rules_mod.preset(name).describe():
             _say(f"    {line}")
+    for name in rules_mod.FIRM_PRESET_NAMES:
+        r, info = rules_mod.rules_and_info(name)
+        _say("")
+        _say(f"--rules {name}   [{info.get('status')}]")
+        if info.get("fallback"):
+            _say(f"    NOTE: {info['fallback']}")
+        for line in r.describe():
+            _say(f"    {line}")
+        if info.get("unverified_fields"):
+            _say(f"    unverified [U] fields: {', '.join(info['unverified_fields'])}")
     _say("")
     _say("--rules custom --rules-file FILE.json takes these fields (fractions: 0.03 = 3%):")
     _say("    " + ", ".join(PropRules.__dataclass_fields__))
@@ -596,7 +755,287 @@ def cmd_selftest(args) -> int:
     return EXIT_OK if n_fail == 0 else EXIT_FAILED
 
 
-COMMANDS = {"evaluate": cmd_evaluate, "pullback": cmd_pullback, "rules": cmd_rules, "selftest": cmd_selftest}
+# ---------------------------------------------------------------------------------------
+# zeno-v1
+
+def _json_job(obj: Any):
+    return lambda p: p.write_text(json.dumps(obj, indent=2, ensure_ascii=True, allow_nan=False) + "\n",
+                                  encoding="ascii")
+
+
+def _bytes_job(data: bytes):
+    return lambda p: p.write_bytes(data)
+
+
+def _zeno_data(args):
+    """Load the M15 bid/ask pair (the lock is enforced there) and the news calendar; prepare once."""
+    _say(f"Loading M15 bid/ask bars from {args.m15_bid} and {args.m15_ask} ...")
+    frame = zv.load_m15_bidask(args.m15_bid, args.m15_ask)
+    s = frame.attrs["zeno_v1"]
+    _say(f"  {s['n_bars']} bars, {s['first_time_utc']} .. {s['last_time_utc']}; spread at the open median "
+         f"{s['spread_open_median']:.3f} USD/oz, p90 {s['spread_open_p90']:.3f} (XAUUSD is usually 0.1 .. 0.7)")
+    if s.get("range_note"):
+        _say(f"  {'WARNING' if s.get('starts_after_range_start') else 'NOTE'}: {s['range_note']}.")
+    _say(f"Loading the news calendar from {args.news} ...")
+    news = zv.read_news_csv(args.news)
+    _say(f"  {news.times.size} NFP/CPI/PPI/FOMC events")
+    _say("  preparing (1h trend, ATR14, server days, filters, setup state machines) ...")
+    return zv.prepare(frame, news)
+
+
+def _zeno_input_info(args, extra: Sequence[tuple[str, str | None]] = ()) -> dict[str, Any]:
+    out = {}
+    for kind, path_text in (("m15_bid", args.m15_bid), ("m15_ask", args.m15_ask), ("news", args.news)) + tuple(extra):
+        if path_text is not None:
+            out[kind] = _input_entry(kind, path_text)
+    return out
+
+
+def cmd_zeno_signals(args) -> int:
+    """`zeno-v1 signals`: stage 1 - signals, decisions and the G0 sample in --out (no P&L, R or outcome)."""
+    for path_text, what in ((args.m15_bid, "M15 bid file"), (args.m15_ask, "M15 ask file"),
+                            (args.news, "news calendar")):
+        bars_mod.check_not_locked(path_text, what=what)
+    cell = zv.ZenoCell(args.variant, args.commission, args.spread_base, args.cost_mult)
+    out_dir = prepare_out_dir(args.out, [args.m15_bid, args.m15_ask, args.news], zeno_report.SIGNALS_FILES)
+    answered = _g0_answers_in(out_dir / "g0_sample.csv")
+    if answered:
+        raise UsageError(f"refusing to replace {out_dir / 'g0_sample.csv'}: it holds {answered} answer(s) in agree_y_n "
+                         "(your G0 chart check), and a new run of `zeno-v1 signals` would draw a fresh, unanswered "
+                         "sample over it. Choose another --out folder, or move that file and the signals_report.json "
+                         "beside it out of this folder first. Nothing was read or written.")
+    _say(report_mod.HEADER)
+    prep = _zeno_data(args)
+    _say(f"  screening the triggers in the declared cell {cell.label} ...")
+    report, tables = zeno_report.signals_stage(prep, cell, args.capital, args.sample, args.seed,
+                                               inputs=_zeno_input_info(args))
+    g0_bytes = zeno_report.csv_bytes(tables["g0_sample"])
+    report["g0"]["sample_sha256"] = hashlib.sha256(g0_bytes).hexdigest()
+    written = write_staged(out_dir, [
+        ("signals.csv", _bytes_job(zeno_report.csv_bytes(tables["signals"]))),
+        ("decisions.csv", _bytes_job(zeno_report.csv_bytes(tables["decisions"]))),
+        ("g0_sample.csv", _bytes_job(g0_bytes)),
+        ("signals_report.json", _json_job(report)),
+        ("signals_report.md", lambda p: p.write_text(zeno_report.render_signals_markdown(report), encoding="ascii"))])
+    _say("")
+    _say(f"Triggers: {report['n_triggers']}, eligible {report['n_eligible']} (cell {cell.label}); G0 sample: "
+         f"{report['g0']['sample_size']} eligible signals (seed {args.seed}).")
+    _say("No P&L, R multiple or outcome was computed for display; nothing in these files is a result.")
+    _say("")
+    _say("NEXT: " + zeno_report.G0_INSTRUCTIONS)
+    _say("")
+    _say("Files written:")
+    for p in written:
+        _say(f"  {p}")
+    return EXIT_OK
+
+
+def _g0_answers_in(path: Path) -> int:
+    """The number of non-empty agree_y_n cells of an existing g0_sample.csv (0 when there is no such file, it is
+    empty or it has no agree_y_n column). A file that cannot be read is refused: it may hold zeno's answers."""
+    if not path.is_file() or path.stat().st_size == 0:
+        return 0
+    try:
+        df = pd.read_csv(path, dtype=str, keep_default_na=False)
+    except (OSError, ValueError) as e:
+        raise UsageError(f"{path} exists but cannot be read ({e}); it may hold your G0 answers, so it is not "
+                         "replaced. Choose another --out folder, or move that file first.")
+    cols = {str(c).strip().lower(): c for c in df.columns}
+    if "agree_y_n" not in cols:
+        return 0
+    return int((df[cols["agree_y_n"]].astype(str).str.strip() != "").sum())
+
+
+def _g0_declared(sample: Path, capital: float, prep: zv.Prepared) -> tuple[zv.ZenoCell, float, dict[str, Any]]:
+    """The cost cell and capital stage 1 declared for a G0 sample, from the signals_report.json beside it (the
+    stage-1 cell and `capital` when there is none), and what that report says about the data (stage-1 seed;
+    same_data_files: whether its bid and ask sha256 equal this run's, None when unknown) [SI-69]."""
+    rp = sample.parent / "signals_report.json"
+    info: dict[str, Any] = {"signals_report": None, "stage1_seed": None, "same_data_files": None}
+    if not rp.is_file():
+        return zeno_report.STAGE1_CELL, float(capital), info
+    bars_mod.check_not_locked(rp, what="signals report")
+    try:
+        rep = json.loads(rp.read_text(encoding="utf-8"))
+        dc = rep["declared_cell"]
+        cell = zv.ZenoCell(dc["variant"], dc["commission_rt_per_lot"], dc["spread_base"], dc["cost_mult"])
+        cap = float(dc.get("capital_usd", capital))
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        raise UsageError(f"cannot read the declared cost cell from {rp} ({type(e).__name__}: {e}); it belongs to the "
+                         "G0 sample beside it (zeno-v1 signals writes both)")
+    data, now = rep.get("data") or {}, prep.frame.attrs.get("zeno_v1") or {}
+    pairs = [(data.get(k), now.get(k)) for k in ("bid_sha256", "ask_sha256")]
+    same = None if any(a is None or b is None for a, b in pairs) else all(a == b for a, b in pairs)
+    info.update(signals_report=str(rp), stage1_seed=(rep.get("g0") or {}).get("seed"), same_data_files=same)
+    return cell, cap, info
+
+
+def _g0_sample_match(sample_path: str, prep: zv.Prepared, capital: float) -> dict[str, Any]:
+    """Check that the G0 sample belongs to the data this run judges (zeno_report.g0_sample_check, [SI-69]) and
+    return the record for gates.json; UsageError (before anything is written) when a row does not match."""
+    p = Path(sample_path).expanduser()
+    try:
+        df = pd.read_csv(p, dtype=str, keep_default_na=False)
+    except (OSError, ValueError) as e:
+        raise UsageError(f"--g0-sample {p.name} cannot be read as CSV: {e}")
+    df.columns = [str(c).strip() for c in df.columns]
+    cell, cap, info = _g0_declared(p, capital, prep)
+    try:
+        chk = zeno_report.g0_sample_check(prep, df, cell, cap)
+    except ValueError as e:
+        raise UsageError(f"--g0-sample {p.name}: {e}")
+    chk.update(info)
+    if not chk["ok"]:
+        n_bad = chk["n_rows"] - chk["n_matched"]
+        u = chk["unmatched"][0]
+        raise UsageError(f"the G0 sample {p.name} does not belong to this data: {n_bad} of {chk['n_rows']} rows are not "
+                         f"eligible signals of these M15 files in the declared cell {chk['declared_cell']} with the "
+                         f"same time, side, entry and stop (first: sample row {u['sample_no']}, {u['signal_time_utc']} "
+                         f"{u['side']}: {u['why']}). G0 checks THIS data's signals: run `zeno-v1 signals` on these "
+                         "files and check that sample on a chart (spec: Gates, G0). Nothing was written.")
+    if chk["same_data_files"] is False:
+        _say(f"NOTE: {p.name} was drawn from other files (their sha256 differ from these), but each of its rows is an "
+             "eligible signal of these files with the same entry and stop.")
+    return chk
+
+
+def _g0_record(sample_path: str | None) -> dict[str, Any]:
+    """The G0 entry of gates.json: the operator's confirmation, and with --g0-sample the file's sha256 and the
+    y/n answers in its agree_y_n column. G0 needs zeno to agree with at least 18 of 20 signals, so a sample is
+    refused (G0 failed or impossible) when it has more "n" answers than it can afford (more than 2 of 20;
+    ceil(18 x rows / 20) y are needed from larger samples) whatever its blanks hold. Once any row holds an
+    answer the sample is zeno's check [SI-60, SI-69]: it is refused ("G0 not met") when it has fewer than 20
+    rows, when any row is not answered y/yes or n/no (blank, "?", ...), or when fewer than ceil(18 x rows / 20)
+    rows are y. A sample with no answer at all is only recorded. cmd_zeno_run then checks that the sample's
+    rows are signals of the data it judges (_g0_sample_match)."""
+    rec: dict[str, Any] = {"status": "confirmed_by_operator", "confirmed_by_operator": True,
+                           "threshold": f"zeno agrees with >= {zeno_report.G0_MIN_AGREE} of "
+                                        f"{zeno_report.G0_SAMPLE_SIZE} sampled signals",
+                           "reading": "G0 is zeno's chart check; propkit records zeno's confirmation and never computes it",
+                           "sample_file": None, "sample_sha256": None, "answered": None, "agree_count": None}
+    if sample_path is None:
+        return rec
+    bars_mod.check_not_locked(sample_path, what="G0 sample file")
+    p = Path(sample_path).expanduser()
+    if not p.is_file():
+        raise UsageError(f"--g0-sample {sample_path}: file not found")
+    data = p.read_bytes()
+    try:
+        df = pd.read_csv(p, dtype=str, keep_default_na=False)
+    except (OSError, ValueError) as e:
+        raise UsageError(f"--g0-sample {p.name} cannot be read as CSV: {e}")
+    rec.update(sample_file=str(p), sample_sha256=hashlib.sha256(data).hexdigest())
+    if "agree_y_n" in df.columns:
+        ans = df["agree_y_n"].astype(str).str.strip().str.lower()
+        yes = int(ans.isin(("y", "yes")).sum())
+        no = int(ans.isin(("n", "no")).sum())
+        answered = yes + no
+        rows = int(len(df))
+        need = math.ceil(zeno_report.G0_MIN_AGREE * max(rows, zeno_report.G0_SAMPLE_SIZE) / zeno_report.G0_SAMPLE_SIZE)
+        rec.update(answered=answered, agree_count=yes, n_no=no, unanswered=rows - answered, n_rows=rows,
+                   min_agree_needed=need)
+        if no > max(rows - need, 0):
+            raise UsageError(f"G0 failed: {p.name} says you agree with {yes} of {answered} answered signals ({no} n, "
+                             f"{rows - answered} unanswered, {rows} rows); the spec needs at least "
+                             f"{zeno_report.G0_MIN_AGREE} of {zeno_report.G0_SAMPLE_SIZE}, so at most "
+                             f"{max(rows - need, 0)} n. Stage 2 is not run: find out why the code and your reading of "
+                             "the rule differ first (spec: Gates, G0).")
+        holds = bool((ans != "").any())                     # any row holds an answer: the sample is the check
+        if holds and rows < zeno_report.G0_SAMPLE_SIZE:
+            raise UsageError(f"G0 not met: {p.name} has {rows} rows, but G0 needs at least "
+                             f"{zeno_report.G0_SAMPLE_SIZE} rows ({zeno_report.G0_MIN_AGREE} of "
+                             f"{zeno_report.G0_SAMPLE_SIZE} checked signals). Draw a sample of "
+                             f"{zeno_report.G0_SAMPLE_SIZE} with `zeno-v1 signals --sample {zeno_report.G0_SAMPLE_SIZE}` "
+                             "and check it on a chart (spec: Gates, G0).")
+        if holds and answered < rows:
+            odd = sorted({a for a in df["agree_y_n"].astype(str).str.strip() if a.lower() not in ("y", "yes", "n", "no")})
+            raise UsageError(f"G0 not met: {p.name}: {rows - answered} of {rows} rows are not answered y or n "
+                             f"({', '.join(repr(a) for a in odd[:5])}); a blank or another answer is not an "
+                             f"agreement. G0 needs at least {need} y of {rows} checked signals: answer every row "
+                             "(spec: Gates, G0).")
+        if holds and yes < need:
+            raise UsageError(f"G0 not met: {p.name} says you agree with {yes} of {rows} signals; the spec needs at least "
+                             f"{need} of {rows} ({zeno_report.G0_MIN_AGREE} of {zeno_report.G0_SAMPLE_SIZE}). Stage 2 "
+                             "is not run (spec: Gates, G0).")
+    return rec
+
+
+def cmd_zeno_run(args) -> int:
+    """`zeno-v1 run`: stage 2 - refuses without --g0-confirmed; otherwise the 24-cell grid, the prop evaluator
+    and the gates, written to --out."""
+    if not args.g0_confirmed:
+        raise UsageError(zeno_report.G0_REFUSAL)
+    if (args.m1_bid is None) != (args.m1_ask is None):
+        raise UsageError("give both --m1-bid and --m1-ask (the D15 second run), or neither")
+    inputs = [args.m15_bid, args.m15_ask, args.news, _rules_path(args.rules),
+              _rules_path(args.reference_rules) if args.reference_rules else None, args.m1_bid, args.m1_ask,
+              args.g0_sample]
+    for path_text in inputs:
+        if path_text is not None:
+            bars_mod.check_not_locked(path_text, what="input file")
+    rules, info = rules_mod.rules_and_info(args.rules, args.capital)
+    reference = (rules_mod.rules_and_info(args.reference_rules, rules.initial_capital)
+                 if args.reference_rules else None)
+    g0 = _g0_record(args.g0_sample)
+    names = zeno_report.RUN_FILES + (zeno_report.M1_DIFF_FILE,)
+    out_dir = prepare_out_dir(args.out, inputs, names)
+    _say(report_mod.HEADER)
+    if info.get("fallback"):
+        _say(f"WARNING: {info['fallback']}.")
+    if info.get("verified") is False or info.get("unverified_fields"):
+        _say(f"WARNING: {info.get('warning') or 'firm rules unverified: ' + ', '.join(info['unverified_fields'])}")
+    prep = _zeno_data(args)
+    if args.g0_sample is not None:
+        _say(f"Checking that the G0 sample {Path(args.g0_sample).name} belongs to this data ...")
+        g0["sample_check"] = _g0_sample_match(args.g0_sample, prep, rules.initial_capital)
+        _say(f"  {g0['sample_check']['n_matched']} of {g0['sample_check']['n_rows']} sampled signals are eligible "
+             f"signals of this data ({g0['sample_check']['declared_cell']}) with the same entry and stop.")
+    _say(f"Running the 24 cells under {rules.name} ({rules.initial_capital:,.0f} USD) ...")
+    extra = [("m1_bid", args.m1_bid), ("m1_ask", args.m1_ask), ("g0_sample", args.g0_sample),
+             ("rules", _rules_path(args.rules))]
+    report, tables = zeno_report.run_stage(
+        prep, rules, info, n_sims=args.n_sims, seed=args.seed, history_reps=args.history_reps, reference=reference,
+        m1=(args.m1_bid, args.m1_ask) if args.m1_bid else None, g0=g0, inputs=_zeno_input_info(args, extra),
+        progress=lambda s: _say(f"  {s}"))
+    jobs = [("report.json", _json_job(report)),
+            ("report.md", lambda p: p.write_text(zeno_report.render_run_markdown(report), encoding="ascii")),
+            ("gates.json", _json_job(report["gates"])),
+            ("trades.csv", lambda p: adapters.write_trades_csv(tables["trades"], p)),
+            ("positions.csv", _bytes_job(zeno_report.csv_bytes(tables["positions"]))),
+            ("decisions.csv", _bytes_job(zeno_report.csv_bytes(tables["decisions"]))),
+            ("grid.csv", _bytes_job(zeno_report.csv_bytes(tables["grid"]))),
+            ("positions_all_cells.csv", _bytes_job(zeno_report.csv_bytes(tables["positions_all_cells"])))]
+    if "m1_diff" in tables:
+        jobs.append((zeno_report.M1_DIFF_FILE, _bytes_job(zeno_report.csv_bytes(tables["m1_diff"]))))
+    written = write_staged(out_dir, jobs)
+    stale = out_dir / zeno_report.M1_DIFF_FILE
+    if "m1_diff" not in tables and stale.is_file():
+        stale.unlink()
+        _say(f"NOTE: removed {stale.name} left by an earlier run (it described that run's M1 resolution).")
+    g = report["gates"]
+    _say("")
+    _say(f"Judging cell: {g['judging_cell']['label']}")
+    for name in ("G0", "G1", "G2", "G3", "G4", "G5"):
+        gate = g["gates"][name]
+        _say(f"  {name}: {gate.get('status')}" + (f" - {gate.get('reading')}" if gate.get("reading") else ""))
+    _say(f"  kill: {'FIRED' if g['kill']['fired'] else 'not fired'} ({g['kill']['judged_at']})")
+    _say(f"Verdict: {g['verdict']}")
+    _say("")
+    _say("Files written:")
+    for p in written:
+        _say(f"  {p}")
+    return EXIT_OK
+
+
+def cmd_zeno_v1(args) -> int:
+    """`zeno-v1 signals|run`."""
+    if args.zeno_command is None:
+        raise UsageError("zeno-v1 needs a stage: signals (first, for the G0 check) or run (after it)")
+    return {"signals": cmd_zeno_signals, "run": cmd_zeno_run}[args.zeno_command](args)
+
+
+COMMANDS = {"evaluate": cmd_evaluate, "pullback": cmd_pullback, "rules": cmd_rules, "selftest": cmd_selftest,
+            "zeno-v1": cmd_zeno_v1}
 
 
 def main(argv: Sequence[str] | None = None) -> int:

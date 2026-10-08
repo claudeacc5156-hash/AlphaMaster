@@ -1,0 +1,209 @@
+{
+  "_comment": "zeno_pullback_v1 machine-readable copy of records/specs/zeno_pullback_v1.md (the .md is authoritative; D-numbers refer to it). Research only.",
+  "spec_id": "zeno_pullback_v1",
+  "version": "1.0",
+  "frozen_utc": "2026-10-08T14:45:00Z",
+  "source_message": "zeno Phase 0, 2026-10-08T14:25:36Z",
+  "placeholder": false,
+  "instrument": {
+    "symbol": "XAUUSD",
+    "contract_oz": 100,
+    "lot_step": 0.01,
+    "price_digits": 2
+  },
+  "account": {
+    "firm": "FundingPips",
+    "plan": "1-Step Flex",
+    "daily_loss_option_pct": 2.0,
+    "size_usd": 100000,
+    "firm_rules_file": "research/FUNDINGPIPS_RULES_2026-10-08.md (pending verification)"
+  },
+  "data": {
+    "source": "Dukascopy M15 bid and ask, UTC",
+    "start_utc": "2015-01-01T00:00:00Z",
+    "end_exclusive_utc": "2025-09-28T00:00:00Z",
+    "h1_from": "M15 bid, UTC hour boundaries",
+    "warmup_trading_days": 30
+  },
+  "trend": {
+    "timeframe": "1h",
+    "ema_period": 30,
+    "ema_seed": "sma_first_30",
+    "slope_bars": 5,
+    "require_close_side": true,
+    "checked_at": "trigger_bar_close"
+  },
+  "pullback": {
+    "timeframe": "15m",
+    "h_lookback_bars": 20,
+    "h_includes_current_bar": true,
+    "h_tie": "latest",
+    "l_lookback_bars_before_h": 20,
+    "min_leg_atr": 1.5,
+    "leg_atr_at": "arming_bar",
+    "valid_retrace": 0.5,
+    "valid_retrace_on": "wick",
+    "void_retrace": 0.786,
+    "void_on": "close",
+    "freeze_h_l_after_arming": true,
+    "new_extreme_cancels": true
+  },
+  "trigger": {
+    "pullback_low_bar": "lowest_low_since_H_latest_on_tie",
+    "new_low_restarts_count": true,
+    "max_bars_after_pullback_low": 8,
+    "min_bars_after_pullback_low": 1,
+    "condition": "close_above_pullback_low_bar_high",
+    "one_shot": true,
+    "fill": "next_bar_open (long at ask, short at bid)"
+  },
+  "atr": {
+    "period": 14,
+    "smoothing": "wilder",
+    "price": "bid",
+    "value_for_stop_and_caps": "trigger_bar_close"
+  },
+  "stop": {
+    "buffer_atr": 0.25,
+    "short_adds_entry_spread": true,
+    "spread_definition": "entry bar ask_open - bid_open",
+    "trigger_side": "long on bid, short on ask",
+    "gap_fill": "bar_open"
+  },
+  "exit": {
+    "partial_fraction": 0.5,
+    "partial_round": "down_to_lot_step",
+    "tp1_r": 2.0,
+    "tp2_r": 4.0,
+    "breakeven_after_tp1": "entry +/- round_trip_commission_per_oz",
+    "target_fill": "at_level",
+    "same_bar": "stop_first; M1-resolved run reported beside",
+    "time_exit": {
+      "local": "16:30",
+      "tz": "America/New_York (US DST rules)",
+      "fill": "open of the 16:30 bar",
+      "early_close": "last bar close before the break"
+    }
+  },
+  "risk": {
+    "risk_pct": 0.005,
+    "balance": "closed balance at entry",
+    "lots": "floor(risk_usd / (R_usd_per_oz * 100), 0.01)",
+    "master_variant_risk_pct": 0.004
+  },
+  "filters": {
+    "vol_cap_atr_over_median": 2.0,
+    "vol_median_window_trading_days": 20,
+    "vol_median_of": "every 15m bar",
+    "max_stop_atr": 3.0,
+    "max_spread_frac_of_stop": 0.1,
+    "entry_windows_sgt": [
+      [
+        "15:00",
+        "18:00"
+      ],
+      [
+        "20:30",
+        "24:00"
+      ]
+    ],
+    "entry_windows_utc": [
+      [
+        "07:00",
+        "10:00"
+      ],
+      [
+        "12:30",
+        "16:00"
+      ]
+    ],
+    "news": {
+      "events": [
+        "NFP 08:30 NY",
+        "CPI 08:30 NY",
+        "PPI 08:30 NY",
+        "FOMC statement 14:00 NY (incl. unscheduled)"
+      ],
+      "block_before_min": 30,
+      "block_after_min": 60,
+      "hold_open_trades": true,
+      "master_variant_close_before_min": 10,
+      "master_variant_close_if_opened_within_h": 5
+    }
+  },
+  "limits": {
+    "day": "broker server day, 17:00 NY to 17:00 NY",
+    "max_entries_per_day": 2,
+    "max_open_positions": 1,
+    "stop_after_losses": 2,
+    "stop_after_day_pnl_pct": -1.0,
+    "loss_definition": "net pnl < 0 after costs",
+    "same_direction_cooldown_min": 15,
+    "intrabar_exit_stamp": "bar close",
+    "hedging": false,
+    "adding": false
+  },
+  "costs": {
+    "commission_rt_per_lot_judged": 10.0,
+    "commission_rt_per_lot_reported": [
+      5.0,
+      10.0
+    ],
+    "spread_bases": {
+      "S1": "Dukascopy per-bar ask-bid",
+      "S2": {
+        "usd": 0.18,
+        "rollover_usd": 0.2,
+        "rollover_sgt": [
+          "05:00",
+          "08:00"
+        ]
+      }
+    },
+    "judge_on": "worse of S1 and S2",
+    "stop_slippage_usd_per_oz": 0.05,
+    "multipliers": [
+      1.0,
+      1.5,
+      2.0
+    ],
+    "swap": 0.0
+  },
+  "gates": {
+    "judged_at": {
+      "commission": 10.0,
+      "spread": "worse",
+      "cost_multiplier": 1.5
+    },
+    "G0_signal_check": "zeno agrees with >= 18 of 20 random signals",
+    "G1_min_trades": 100,
+    "G2": "net expectancy > 0 R and PSR(SR>0) >= 0.95 (daily)",
+    "G3_periods": [
+      [
+        "2015-01-01",
+        "2017-12-31"
+      ],
+      [
+        "2018-01-01",
+        "2020-12-31"
+      ],
+      [
+        "2021-01-01",
+        "2023-12-31"
+      ],
+      [
+        "2024-01-01",
+        "2025-09-27"
+      ]
+    ],
+    "G3_min_positive": 3,
+    "G4": {
+      "p_daily_breach_before_target_max": 0.05,
+      "p_max_breach_before_target_max": 0.1
+    },
+    "G5": "per side; expectancy <= 0 at x1 flagged",
+    "kill": "G2 fails at costs x1",
+    "dsr_trials_N": 1,
+    "forward_demo": ">= 50 trades or 3 months after a pass"
+  }
+}

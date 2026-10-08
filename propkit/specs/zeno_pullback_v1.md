@@ -1,0 +1,211 @@
+# zeno_pullback_v1: frozen spec
+
+- **Status:** FROZEN v1.0, 2026-10-08 14:45Z (22:45 SGT). No backtest of this rule exists yet; the project has no 15m data so far.
+- **Source:** zeno's Phase 0 message, 2026-10-08 14:25:36Z (quoted verbatim below).
+- **Machine-readable copy:** zeno_pullback_v1.json (same folder). The sha256 hashes of both files are in records/LEDGER.md.
+- **Research only:** nothing here places or prepares orders.
+
+## Change policy
+
+1. Before any result is shown, zeno may change any default below (D1-D24). The change edits v1 in place, gets a new hash in the ledger, and does not count as a variant.
+   - "Result" means P&L, R, Sharpe, hit rate, or prop-firm pass or breach odds.
+   - The G0 signal check shows signals without P&L, so it does not count as a result.
+2. After the first result is shown, any change creates v2. N (the number of variants tried) goes to 2, and the DSR bar rises.
+3. Every new setup zeno sends is its own spec (zeno_<name>_v1). Each setup tested on the same data also adds to N.
+
+## zeno's rule (verbatim)
+
+```
+MY PULLBACK RULE (longs; shorts mirror)
+1  Timeframes: trend 1h, entry 15m (bid bars, UTC).
+2  Trend: last closed 1h bar closes above EMA30(1h), and EMA30(1h) is above its value 5 bars ago.
+3  Pullback: H = highest high of the last 20 closed 15m bars; L = lowest low of the 20 bars before H.
+   Leg H-L at least 1.5 x ATR14(15m). Valid once price retraces 50% of the leg;
+   void if a 15m bar closes beyond 78.6%.
+4  Trigger: first 15m close above the high of the pullback-low bar, within 8 bars of that low.
+   Buy at the next bar's open (ask).
+5  Stop: long = pullback low - 0.25 x ATR14(15m). Short = pullback high + 0.25 x ATR14(15m) + spread.
+   Set with the order; only rule 6 moves it.
+6  Exit (PTPBE): close 50% at +2R, move stop to entry + costs, close the rest at +4R.
+   Anything open closes 20:30 UTC / 04:30 SGT (21:30 / 05:30 in winter), before FundingPips' auto-close.
+7  Risk: 0.5% of balance, flat (0.4% on FundingPips Master). Lots = risk $ / (stop $ x 100), round down.
+8  Volatility cap: no entry if ATR14(15m) > 2 x its median over the previous 20 trading days,
+   or if the stop is wider than 3 x ATR14(15m).
+9  Sessions: entries 15:00-18:00 and 20:30-00:00 SGT. No entries from 30 min before to 60 min after
+   NFP, CPI, PPI, FOMC. FundingPips Master: 10 min before those, close any trade opened under 5 h ago.
+10 Spread: skip if spread > 10% of the stop distance.
+11 Max 2 trades a day, 1 open position, stop for the day after 2 losses or -1.0%.
+   No same-direction re-entry within 15 min of an exit. No hedging, no adding, no manual closes.
+12 Both directions; the trend filter picks the side. Report longs and shorts separately.
+```
+
+### Account facts from the same message
+
+- **Account:** FundingPips 1-Step Flex, 2% daily-loss option. Size $100,000.
+- **Platform:** MT5; server name not given.
+- **Contract:** XAUUSD, 100 oz per lot, volume step 0.01, 2 price digits.
+- **Commission:** $5 or $10 per lot round trip, not yet confirmed.
+- **Swap:** not given. It is not used, because rule 6 closes every trade before rollover.
+- **Broker spread, Jan-Mar 2026:**
+  - median $0.18 in Asia, London and New York;
+  - 90% of minutes below $0.28, $0.24 and $0.21 respectively;
+  - rollover (05-08 SGT): median $0.20, 90% below $0.46.
+- **Server clock:** New York + 7 h.
+
+## Defaults where the text leaves a detail open
+
+The four marked (*) change results the most. These are also the points the PC flagged as open.
+
+### Data and indicators
+
+- **D1 Data.**
+  - Source: Dukascopy XAUUSD M15 bid bars and M15 ask bars, in UTC.
+  - Range: 2015-01-01 to the last bar opening before 2025-09-28 00:00 UTC (the holdout lock).
+  - 1h bars are built from the M15 bid bars on UTC hour boundaries, so both timeframes come from one source.
+  - The first 30 trading days are warm-up, with no entries.
+- **D2 Indicators.**
+  - EMA30 on 1h bid closes: alpha = 2/31, seeded with the simple average of the first 30 closes.
+  - ATR14 on 15m bid bars: Wilder smoothing of the true range.
+- **D3 Last closed 1h bar.** At a 15m close at time t, this is the 1h bar whose close time is at or before t. "5 bars ago" means 5 closed 1h bars earlier.
+- **D4 Trend timing.**
+  - The trend is checked at the trigger bar's close.
+  - Long and short setups are tracked separately.
+  - A trigger enters only if the trend agrees with its side at that close.
+
+### The pullback and the trigger
+
+- **D5 H and L.**
+  - H is the highest high of the last 20 closed 15m bars, counting the current bar. On a tie, the latest bar is H.
+  - L is the lowest low of the 20 bars that end just before the H bar.
+- **D6 (*) 50% retracement.**
+  - Default: reached when a bar's low (the bid wick) touches H - 0.5 x (H - L).
+  - Alternative: a close at or below that level.
+  - Void when a bar closes below H - 0.786 x (H - L), as zeno's text says.
+- **D7 Leg size.** The test H - L >= 1.5 x ATR14 uses the ATR at the bar where the setup arms.
+- **D8 Arming.**
+  - The setup arms on the first closed bar where D5-D7 hold and no close since H was beyond 78.6%.
+  - From then on, H and L are frozen. H dropping out of the 20-bar window does not cancel the setup.
+  - A new high above H cancels it, and the search restarts.
+- **D9 (*) Pullback-low bar.**
+  - It is the bar with the lowest low since H (the latest one on a tie).
+  - A new lower low that is not a void close moves it and restarts the 8-bar count.
+  - The trigger is the first close above that bar's high, 1 to 8 bars after it.
+  - With no trigger after 8 bars, the setup expires.
+- **D10 One shot.**
+  - The first trigger close uses up the setup, even when the entry is blocked.
+  - This applies to every blocker: session, news, spread, volatility, daily limits, cooldown, an open position, or the trend.
+  - A later close is never chased.
+
+### Entry, stop, size and exits
+
+- **D11 Entry fill.**
+  - A long fills at the next bar's ask open; a short at its bid open.
+  - The spread used in rules 5 and 10 is that entry bar's ask open minus bid open. It is known at the moment of entry.
+- **D12 ATR in rules 5 and 8.** ATR14 at the trigger bar's close.
+- **D13 R and lot size.**
+  - R (USD per oz) = |entry fill - stop level|.
+  - Lots = floor(0.005 x balance / (R x 100)) to 0.01, using the closed balance at entry.
+  - Commission is paid on top, so a full stop loses slightly more than 0.5% (about +0.02% at $10 per lot and a $5 stop).
+- **D14 Stop and target levels.**
+  - They trigger on the price that closes the position, as MT5 does: the bid for longs, the ask for shorts.
+  - Targets are +2R and +4R from the entry fill.
+  - A bar that opens beyond the stop fills at its open (a gap).
+  - Targets fill at their level, never better.
+- **D15 (*) Same-bar order.** Inside one 15m bar the order of prices is unknown.
+  - If one bar touches both the stop and a target, the stop is assumed first.
+  - After the +2R partial, if the same bar also touches the breakeven stop, the rest closes at breakeven.
+  - A second run resolves those bars with M1 data and is reported beside the first.
+- **D16 Partial and breakeven.**
+  - "50%" = half the lots, rounded down to 0.01; the rest stays open.
+  - Breakeven stop = entry fill plus (long) or minus (short) the round-trip commission per oz. The entry fill already includes the spread.
+- **D17 Time exit.**
+  - The exit time is 16:30 New York time: 20:30 UTC during US summer time, 21:30 UTC otherwise (US clock rules). The position closes at the open of the 16:30 bar.
+  - On a US holiday with an early close, it closes at the last bar before the break.
+  - So no position crosses the 17:00 New York rollover, and swap is zero.
+
+### Filters and limits
+
+- **D18 (*) Volatility median.**
+  - Default: the median of ATR14(15m) over every 15m bar of the previous 20 complete trading days, today excluded.
+  - Alternative: one value per day.
+  - Rule 8's stop test: skip if R > 3 x ATR14.
+- **D19 Entry windows.**
+  - The entry time (= the trigger bar's close) must fall in [15:00, 18:00) or [20:30, 24:00) SGT.
+  - In UTC that is [07:00, 10:00) and [12:30, 16:00). Singapore has no clock change.
+- **D20 News blackout.**
+  - No entry with an entry time in [T - 30 min, T + 60 min], where T is the scheduled time of:
+    - NFP (Employment Situation), CPI and PPI at 08:30 New York time;
+    - FOMC statements at 14:00 New York time, plus unscheduled FOMC statements.
+  - Dates come from official BLS and Federal Reserve calendars.
+  - Open trades are held through news in the evaluation run.
+- **D21 Daily limits (rule 11).**
+  - A day is one broker server day: 17:00 New York to 17:00 New York.
+  - "A loss" is a trade with net P&L below zero after costs.
+  - "-1.0%" means the day's realised net P&L is at or below -1.0% of the balance at the day's start.
+  - At most 2 entries per day and one open position. A trigger that comes while a position is open is used up.
+- **D22 Cooldown.**
+  - An exit inside a bar is stamped at that bar's close, because the time inside the bar is unknown.
+  - The next same-direction entry is allowed no earlier than 15 minutes after that stamp.
+- **D23 Master variant.**
+  - A separate, pre-declared run with 0.4% risk and the Master news rule: 10 minutes before each event, close any trade opened less than 5 h earlier (at the open of the bar containing T - 10 min).
+  - It is the same rule in another account, so it is not a new variant.
+- **D24 Firm rules.**
+  - FundingPips 1-Step Flex (2% daily option), from the verified rule sheet (verification in progress).
+  - The firm's daily-loss reset time and any auto-close come from that sheet.
+  - The prop evaluator uses the firm's day; rule 11 uses D21.
+
+## Costs
+
+- **Commission:** judged at $10 per lot round trip; $5 also reported.
+- **Spread base S1:** the Dukascopy spread in the data, per bar.
+- **Spread base S2:** zeno's broker numbers, applied as ask = bid + S2: $0.18 in every session, and $0.20 during rollover (05:00-08:00 SGT).
+- **Which base is judged:** the worse of S1 and S2.
+- **Disclosure for S2:**
+  - S2 was measured after the holdout lock. It carries cost information only, no returns.
+  - A constant dollar spread overstates costs in years when gold was cheaper (2015-2019).
+- **Stop slippage:** $0.05 per oz on stop fills [ASSUMPTION], on top of gap fills.
+- **Cost multipliers:** x1, x1.5 and x2, each scaling spread, commission and slippage.
+- **Swap:** zero, by D17.
+
+## Reports
+
+- **Split:** longs, shorts and combined; per year.
+- **Trades and hits:**
+  - trades per year;
+  - the +2R hit rate, and the +4R hit rate after +2R;
+  - expectancy in R and in USD;
+  - longest losing streak.
+- **Risk-adjusted:** daily Sharpe and PSR. DSR with N = 1, which understates the bar (see below).
+- **Prop evaluator** (day-block bootstrap):
+  - P(pass);
+  - P(daily-loss breach) and P(max-loss breach);
+  - days to target.
+- **Decision log:** every trigger, with entered or blocked, and which filter blocked it.
+
+## Gates
+
+These were proposed at freeze, so zeno can change them before any result is shown. They are judged at commission $10, the worse spread base, costs x1.5, in the evaluation run.
+
+- **G0 Signal check.** Before any result is read, zeno checks 20 random signals on a chart and agrees with at least 18.
+- **G1 Sample.** At least 100 trades in total. Otherwise the verdict is "insufficient sample".
+- **G2 Edge.** Net expectancy above 0 R per trade, and PSR(SR > 0) of at least 0.95 on daily returns.
+- **G3 Stability.** Net expectancy above 0 in at least 3 of 4 periods:
+  - 2015-2017;
+  - 2018-2020;
+  - 2021-2023;
+  - 2024 to 2025-09-27.
+- **G4 Prop survival** at 0.5% risk under the verified FundingPips rules:
+  - P(daily-loss breach before target) at or below 5%;
+  - P(max-loss breach before target) at or below 10%.
+- **G5 Each side.** Longs and shorts are reported separately. A side with expectancy at or below 0 at costs x1 is flagged as not tradeable on its own.
+- **Kill.** If G2 fails at costs x1, the rule as written has no edge on this data. No tuning on the same data follows; any change is v2.
+- **After a pass.** A forward demo of at least 50 trades or 3 months comes before the rule counts. The backtest is in-sample by construction, because zeno designed the rule while watching this market over these years.
+
+## Open items (none blocks coding)
+
+- Server name.
+- Commission: $5 or $10. Both are reported; $10 is judged.
+- Swap: not used.
+- FundingPips rule sheet: verification in progress.
+- News calendar: to be built.
+- Under addendum 2 (A7), this rule is not eligible for grid 1's C8 holdout test.

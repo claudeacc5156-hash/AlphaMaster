@@ -59,21 +59,37 @@ def _same_length(*arrays: np.ndarray) -> None:
 # ---------------------------------------------------------------------------------------
 # moving averages and ranges
 
-def ema(values, period: int) -> np.ndarray:
+EMA_SEEDS = ("first", "sma")
+
+
+def ema(values, period: int, seed: str = "first") -> np.ndarray:
     """Exponential moving average, causal, in the units of `values` (e.g. USD/oz of BID closes).
 
-    alpha = 2 / (period + 1); seeded with the FIRST value: ema[0] = x[0], then
-    ema[t] = alpha * x[t] + (1 - alpha) * ema[t-1]. There is no NaN warm-up, but the seed's weight
+    alpha = 2 / (period + 1), then ema[t] = alpha * x[t] + (1 - alpha) * ema[t-1].
+    seed "first" (the default, unchanged): ema[0] = x[0]. There is no NaN warm-up, but the seed's weight
     (1 - alpha)^t fades slowly: after 3 x period bars it is below 0.25%, which is why the pullback
     generator ignores signals before its warm-up (PullbackSpec.warmup). period 1 returns the input.
     (Same recursion as pandas ewm(span=period, adjust=False).mean(), which computes it.)
+    seed "sma" (zeno_pullback_v1 D2): ema[period-1] = the simple average of the first `period` values and
+    the recursion runs from there; ema[0 .. period-2] = NaN (warm-up). Fewer than `period` values give
+    all NaN.
     """
     x = _series(values, "values")
     n = _period(period)
+    if seed not in EMA_SEEDS:
+        raise ValueError(f"seed must be one of {EMA_SEEDS}, got {seed!r}")
     if x.size == 0:
         return x
     alpha = 2.0 / (n + 1.0)
-    return pd.Series(x).ewm(alpha=alpha, adjust=False).mean().to_numpy(dtype=np.float64)
+    if seed == "first":
+        return pd.Series(x).ewm(alpha=alpha, adjust=False).mean().to_numpy(dtype=np.float64)
+    out = np.full(x.size, np.nan)
+    if x.size < n:
+        return out
+    seeded = x[n - 1:].copy()
+    seeded[0] = x[:n].mean()
+    out[n - 1:] = pd.Series(seeded).ewm(alpha=alpha, adjust=False).mean().to_numpy(dtype=np.float64)
+    return out
 
 
 def true_range(high, low, close) -> np.ndarray:

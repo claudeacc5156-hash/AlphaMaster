@@ -130,7 +130,8 @@ def _sharpe_or_reason(values, periods_per_year) -> tuple[dict | None, str | None
 
 
 def stats_section(equity: pd.DataFrame, trades: pd.DataFrame | None, C0: float, n_trials: int | None = None,
-                  sr_var: float | None = None, es_alpha: float = 0.05) -> dict[str, Any]:
+                  sr_var: float | None = None, es_alpha: float = 0.05,
+                  day_boundary: str = calendar.DEFAULT_DAY_BOUNDARY) -> dict[str, Any]:
     """Statistics of one run (propkit.stats; see that module for every formula).
 
     per_trade: E[R] +- SE and the other R-multiple figures (evaluator.r_summary), and the Sharpe statistics
@@ -140,7 +141,8 @@ def stats_section(equity: pd.DataFrame, trades: pd.DataFrame | None, C0: float, 
     IID returns), PSR against 0, the minimum track record length at 95% (in prop days), and the DSR when
     n_trials is given (sr_var default: 1/(n - 1), see SR_VAR_NOTE). drawdown: drawdown_stats (max
     drawdown intrabar and close-to-close, longest underwater spell, expected shortfall of the daily
-    returns at es_alpha, worst day).
+    returns at es_alpha, worst day). day_boundary: the firm day the daily returns use (default the CE(S)T
+    prop day; analyse passes rules.day_boundary).
     """
     out: dict[str, Any] = {"n_trades": 0 if trades is None else int(len(trades))}
     rs = r_summary(trades) if trades is not None else None
@@ -160,7 +162,7 @@ def stats_section(equity: pd.DataFrame, trades: pd.DataFrame | None, C0: float, 
     out["per_trade"] = {"basis": basis, "sharpe": per_trade, "unavailable": None if per_trade else why}
 
     try:
-        daily = st.daily_returns_from_equity(equity, C0)
+        daily = st.daily_returns_from_equity(equity, C0, _day_key(day_boundary))
     except ValueError as e:                     # e.g. the account went to zero: returns are undefined after it
         out["per_day"] = {"n_days": None, "periods_per_year": None, "sharpe": None, "unavailable": str(e),
                           "min_track_record_days_95": None, "dsr": None}
@@ -188,9 +190,15 @@ def stats_section(equity: pd.DataFrame, trades: pd.DataFrame | None, C0: float, 
             details["note"] = st.TRIALS_NOTE if sr_var is not None else SR_VAR_NOTE + " " + st.TRIALS_NOTE
             per_day["dsr"] = details
     out["per_day"] = per_day
-    out["drawdown"] = st.drawdown_stats(equity, C0, alpha=es_alpha)
+    out["drawdown"] = st.drawdown_stats(equity, C0, alpha=es_alpha, by=_day_key(day_boundary))
     out["trials_note"] = st.TRIALS_NOTE
     return out
+
+
+def _day_key(day_boundary: str) -> str:
+    """The stats day key of a firm-day boundary ("prop_day" for the default, the same days)."""
+    b = calendar.check_day_boundary(day_boundary)
+    return "prop_day" if b == calendar.DEFAULT_DAY_BOUNDARY else b
 
 
 def strategy_card(report: dict[str, Any]) -> list[dict[str, str]]:
@@ -274,10 +282,23 @@ def cost_summary(cost_model: CostModel) -> str:
 # ---------------------------------------------------------------------------------------
 # the whole analysis
 
-def bootstrap_warnings(blocks: dict[str, Any]) -> list[str]:
+def _held_over(day_boundary: str = calendar.DEFAULT_DAY_BOUNDARY) -> str:
+    """'midnight' for the default CE(S)T prop day (FTMO wording unchanged), else 'the day boundary (<label>)'."""
+    b = calendar.check_day_boundary(day_boundary)
+    return "midnight" if b == calendar.DEFAULT_DAY_BOUNDARY else f"the day boundary ({calendar.boundary_label(b)})"
+
+
+def _day_start_balance(day_boundary: str = calendar.DEFAULT_DAY_BOUNDARY) -> str:
+    """'00:00' for the default CE(S)T prop day (FTMO wording unchanged), else the boundary's label."""
+    b = calendar.check_day_boundary(day_boundary)
+    return "00:00" if b == calendar.DEFAULT_DAY_BOUNDARY else calendar.boundary_label(b)
+
+
+def bootstrap_warnings(blocks: dict[str, Any], day_boundary: str = calendar.DEFAULT_DAY_BOUNDARY) -> list[str]:
     """Plain-text reasons to distrust the block bootstrap, from DayUnits.block_summary() (empty list when
     there are none): few flat-to-flat day blocks (fewer than bootstrap.FEW_BLOCKS), or many prop days that
-    start with a position open (they cannot start a block, so long holds are resampled as one piece)."""
+    start with a position open (they cannot start a block, so long holds are resampled as one piece).
+    day_boundary: the firm's day the blocks were cut at (rules.day_boundary), named in the text."""
     out = []
     n_blocks, n_days = blocks.get("n_blocks_days"), blocks.get("n_days")
     share = blocks.get("share_open_at_start") or 0.0
@@ -285,8 +306,8 @@ def bootstrap_warnings(blocks: dict[str, Any]) -> list[str]:
         out.append(f"only {n_blocks} flat-to-flat day blocks in {n_days} prop days: the bootstrap re-uses very few "
                    "starting points and its probabilities are rough (see the history-uncertainty range)")
     if share >= 0.5:
-        out.append(f"{share * 100:.0f}% of the prop days start with a position open: positions held over midnight "
-                   "join days into long blocks, so the bootstrap has little to resample")
+        out.append(f"{share * 100:.0f}% of the prop days start with a position open: positions held over "
+                   f"{_held_over(day_boundary)} join days into long blocks, so the bootstrap has little to resample")
     return out
 
 
@@ -329,7 +350,7 @@ def analyse(bars: pd.DataFrame, trades: pd.DataFrame | None, equity: pd.DataFram
         return value
 
     path = timed("historical path", lambda: evaluate_path(equity, trades, rules))
-    units = timed("day units", lambda: boot.build_day_units(equity, c0, trades))
+    units = timed("day units", lambda: boot.build_day_units(equity, c0, trades, rules.day_boundary))
     kw = dict(n_sims=n_sims, seed=seed, horizon_days=horizon_days, units=units, horizon_unit=horizon_unit)
     days = timed("bootstrap days", lambda: boot.bootstrap_challenges(None, rules, mode="days", **kw))
     weeks = timed("bootstrap weeks", lambda: boot.bootstrap_challenges(None, rules, mode="weeks", **kw))
@@ -343,8 +364,9 @@ def analyse(bars: pd.DataFrame, trades: pd.DataFrame | None, equity: pd.DataFram
     m_daily = ms.multiplier if ms.multiplier is not None and math.isfinite(ms.multiplier) else None
     blocks["days_breaching_alone_at_max_size"] = (None if m_daily is None
                                                   else boot.days_breaching_alone(units, rules, m_daily))
-    warnings = bootstrap_warnings(blocks)
-    stats = timed("statistics", lambda: stats_section(equity, trades, c0, n_trials, sr_var))
+    warnings = bootstrap_warnings(blocks, rules.day_boundary)
+    stats = timed("statistics", lambda: stats_section(equity, trades, c0, n_trials, sr_var,
+                                                       day_boundary=rules.day_boundary))
     stress = None
     if run_stress and trades is not None:
         stress = timed("stress tests", lambda: stress_mod.run_stress(bars, trades, c0, cost_model, rules,
@@ -419,6 +441,7 @@ def render_markdown(report: dict[str, Any]) -> str:
     n_sims = s["n_sims"]
     hu = r.get("history_uncertainty")
     blocks = r.get("blocks") or {}
+    boundary = rules.get("day_boundary") or calendar.DEFAULT_DAY_BOUNDARY
 
     def hrange(key: str, nd: int = 4) -> str:
         q = (hu or {}).get(key)
@@ -498,7 +521,7 @@ def render_markdown(report: dict[str, Any]) -> str:
     ])
     L += ["", f"## Bootstrap of challenges ({s['n_sims']} simulations, seed {s['seed']}, horizon {hz})", ""]
     L += ["Flat-to-flat blocks of the history are drawn with replacement and chained: a day block runs from a "
-          "prop day that starts with no position open to the next such day (a position held over midnight "
+          f"prop day that starts with no position open to the next such day (a position held over {_held_over(boundary)} "
           "keeps its days together), a week block from a flat market-week start to the next. Every challenge "
           "starts flat, and every rule is applied bar by bar as on the historical path. The horizon counts "
           + ("days with a trade entry (FTMO trading days); days without one still run and can breach."
@@ -546,8 +569,8 @@ def render_markdown(report: dict[str, Any]) -> str:
               "low by chance, so the true P there can exceed alpha (see the history-uncertainty range)."]
     alone = blocks.get("days_breaching_alone_at_max_size")
     if alone is not None:
-        L += ["", f"Historical prop days whose own drawdown from the 00:00 balance would break the daily limit at "
-                  f"that size: {alone}."]
+        L += ["", f"Historical prop days whose own drawdown from the {_day_start_balance(boundary)} balance would "
+                  f"break the daily limit at that size: {alone}."]
     L += ["", "## Statistics", ""]
     pt = stats.get("per_trade") or {}
     psh = pt.get("sharpe") or {}
@@ -609,8 +632,12 @@ def render_markdown(report: dict[str, Any]) -> str:
     L += ["", "## STRATEGY CARD (skeleton)", "", "[U] = unknown, fill in by hand; [ASSUMPTION] = an assumed value "
           "to verify.", ""]
     L += _table(["field", "value"], [[x["field"], x["value"]] for x in r["strategy_card"]])
+    day_note = ("- Prop days run 00:00-00:00 CE(S)T (Europe/Prague): 22:00 UTC in summer, 23:00 UTC in winter."
+                if boundary == calendar.DEFAULT_DAY_BOUNDARY else
+                f"- Prop days run {calendar.boundary_label(boundary)} to {calendar.boundary_label(boundary)} (the "
+                f"firm's day, {calendar.boundary_utc_text(boundary)}).")
     L += ["", "## Notes", "",
-          "- Prop days run 00:00-00:00 CE(S)T (Europe/Prague): 22:00 UTC in summer, 23:00 UTC in winter.",
+          day_note,
           "- One spread per bar is used for every fill and ask-side mark in that bar (an approximation).",
           "- Bootstrap probabilities assume the future days look like these historical days. They do not cover "
           "regime changes, rule changes or execution problems. Their +- is simulation noise only.",
