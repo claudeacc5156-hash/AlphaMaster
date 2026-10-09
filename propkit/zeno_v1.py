@@ -290,6 +290,10 @@ def _read_table(path, what: str) -> tuple[pd.DataFrame, str]:
     suffix = p.suffix.lower()
     if suffix not in bars_mod.PARQUET_SUFFIXES + bars_mod.CSV_SUFFIXES:
         raise ValueError(f"{what} {p.name}: use a .parquet or .csv file (got '{suffix or 'no suffix'}')")
+    if p.stat().st_size == 0:
+        raise ValueError(f"{what} {p.name} is empty (0 bytes)" + (
+            ": its download stopped before any data was written. Run the dukascopy-node command for that side "
+            "again" if what.endswith(("bid file", "ask file")) else ""))
     try:
         df = pd.read_parquet(p) if suffix in bars_mod.PARQUET_SUFFIXES else pd.read_csv(p)
     except Exception as e:   # pyarrow and the CSV parser raise several types
@@ -372,9 +376,14 @@ def bidask_frame(bid: pd.DataFrame, ask: pd.DataFrame, bar_seconds: int = M15_SE
     spread_open = a["open"].to_numpy() - b["open"].to_numpy()
     if (spread_open < 0).any():
         i = int(np.flatnonzero(spread_open < 0)[0])
+        n_below = int((spread_open < 0).sum())
+        opt = f"--{source.lower()}" if source in ("M15", "M1") else source
+        swapped = (f" The files look swapped: give the bid file to {opt}-bid and the ask file to {opt}-ask."
+                   if n_below >= 0.9 * spread_open.size else "")
         raise ValueError(f"{source}: row {i} ({calendar.utc_str(int(tb[i]))}) has ask_open below bid_open "
-                         f"({a['open'].iloc[i]:g} < {b['open'].iloc[i]:g}); {int((spread_open < 0).sum())} row(s) "
-                         "affected. The ask must be >= the bid at the open (the entry spread of rules 5 and 10).")
+                         f"({a['open'].iloc[i]:g} < {b['open'].iloc[i]:g}); {n_below} row(s) "
+                         "affected. The ask must be >= the bid at the open (the entry spread of rules 5 and 10)."
+                         + swapped)
     frame = pd.DataFrame({"time": tb})
     for side, df in (("bid", b), ("ask", a)):
         for col in bars_mod.PRICE_COLUMNS:
@@ -421,12 +430,40 @@ def _range_fields(t: np.ndarray, cut: int) -> dict[str, Any]:
             "range_note": "; ".join(notes)}
 
 
+def _check_downloaded_pair(frame: pd.DataFrame, bid_name: str, ask_name: str, bar_seconds: int, label: str) -> None:
+    """Two download mistakes that bidask_frame accepts, refused for bar FILES only (in-memory test frames may be
+    24/7 or spread-free): an ask file holding the bid's prices on every bar (dukascopy-node downloads the bid
+    unless -p ask is given, or the bid file given twice), and flat filler bars (dukascopy-node -fl / --flats):
+    a Saturday (UTC) with a bar in every slot. Gold does not trade on Saturdays, and a stray bar there cannot
+    fill a whole day, so real data is never refused."""
+    opt = f"--{label.lower()}"
+    if all(np.array_equal(frame[f"bid_{c}"].to_numpy(), frame[f"ask_{c}"].to_numpy())
+           for c in bars_mod.PRICE_COLUMNS):
+        raise ValueError(f"{label}: the ask file {ask_name} holds the same prices as the bid file {bid_name} on every "
+                         "bar (spread 0): it is the bid data again. dukascopy-node downloads the bid unless told "
+                         f"otherwise: download the ask side with -p ask and give that file to {opt}-ask")
+    t = frame["time"].to_numpy(dtype=np.int64)
+    day = t // 86400
+    sat = (day + 3) % 7 == 5                                        # 1970-01-01 was a Thursday (3, Monday = 0)
+    if sat.any():
+        days, counts = np.unique(day[sat], return_counts=True)
+        full = days[counts >= 86400 // int(bar_seconds)]
+        if full.size:
+            raise ValueError(
+                f"{label}: {int(sat.sum())} bars open on a Saturday (UTC), and {full.size} Saturday(s) have a bar in "
+                f"every {int(bar_seconds) // 60}-minute slot (the first: "
+                f"{calendar.utc_str(int(full[0]) * 86400)[:10]}). "
+                "Gold does not trade on Saturdays: these are flat filler bars (dukascopy-node -fl / --flats). "
+                "Download both sides again without -fl")
+
+
 def _load_pair(bid_path, ask_path, bar_seconds: int, label: str) -> pd.DataFrame:
     for path, side in ((bid_path, "bid"), (ask_path, "ask")):        # refuse locked paths before any read
         bars_mod.check_not_locked(path, what=f"{label} {side} file")
     bid, bid_name = _read_table(bid_path, f"{label} bid file")
     ask, ask_name = _read_table(ask_path, f"{label} ask file")
     frame = bidask_frame(bid, ask, bar_seconds=bar_seconds, source=label)
+    _check_downloaded_pair(frame, bid_name, ask_name, bar_seconds, label)
     from propkit.report import file_sha256
     frame.attrs["zeno_v1"].update({
         "bid_file": str(bid_path), "ask_file": str(ask_path),
@@ -441,8 +478,9 @@ def load_m15_bidask(bid_path, ask_path) -> pd.DataFrame:
     open, high, low, close[, tick_volume]) or a dukascopy-node CSV (timestamp in ms, open, high, low,
     close[, volume]); UTC. Locked-holdout paths are refused before anything is opened (LockedPathError);
     any bar opening at or after 2025-09-28 00:00 UTC is refused (HoldoutLockError, no override). See
-    bidask_frame for every check and the columns; frame.attrs["zeno_v1"] also records both files and their
-    sha256."""
+    bidask_frame for every check and the columns (a 0-byte file, an ask file with the bid's prices and flat
+    weekend filler bars are refused too: _read_table, _check_downloaded_pair); frame.attrs["zeno_v1"] also
+    records both files and their sha256."""
     return _load_pair(bid_path, ask_path, M15_SECONDS, "M15")
 
 

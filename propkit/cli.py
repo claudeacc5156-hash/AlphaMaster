@@ -38,6 +38,7 @@ import io
 import json
 import math
 import os
+import re
 import sys
 import time
 import traceback
@@ -855,9 +856,9 @@ def cmd_zeno_signals(args) -> int:
     answered = _g0_answers_in(out_dir / "g0_sample.csv")
     if answered:
         raise UsageError(f"refusing to replace {out_dir / 'g0_sample.csv'}: it holds {answered} answer(s) in agree_y_n "
-                         "(your G0 chart check), and a new run of `zeno-v1 signals` would draw a fresh, unanswered "
-                         "sample over it. Choose another --out folder, or move that file and the signals_report.json "
-                         "beside it out of this folder first. Nothing was read or written.")
+                         "or beside it (your G0 chart check), and a new run of `zeno-v1 signals` would draw a fresh, "
+                         "unanswered sample over it. Choose another --out folder, or move that file and the "
+                         "signals_report.json beside it out of this folder first. Nothing was read or written.")
     _say(report_mod.HEADER)
     restricted_path = _restricted_path(args, cell.variant == "master_fp")
     prep = _zeno_data(args, restricted_path)
@@ -885,20 +886,105 @@ def cmd_zeno_signals(args) -> int:
     return EXIT_OK
 
 
+G0_SAVE_AS_CSV = "in Excel use File > Save As > 'CSV UTF-8 (Comma delimited) (*.csv)' and keep that format"
+G0_ONE_FIELD_MORE = ("type each answer in agree_y_n: in Notepad right after the last comma of its line, with no "
+                     "extra comma (the line ends ',y', not ',,y'), and nothing to the right of agree_y_n")
+
+
+def _col_letter(k: int) -> str:
+    """The spreadsheet letter of 1-based column k (1 -> A, 19 -> S, 27 -> AA)."""
+    out = ""
+    while k > 0:
+        k, r = divmod(k - 1, 26)
+        out = chr(65 + r) + out
+    return out
+
+
+def _g0_read_csv(raw: bytes, what: str) -> pd.DataFrame:
+    """The bytes of a G0 sample read as a table of text cells (pandas.read_csv, dtype str, no NA conversion): the
+    one reader of g0_sample.csv for stage 1's guard, stage 2 and g0-charts. Refused (UsageError; `what` names the
+    file) with advice zeno can act on: an Excel workbook or a UTF-16 ('Unicode') save instead of a CSV file, text
+    that is not UTF-8 (Excel's 'CSV (Comma delimited)' saves in the Windows code page once a cell holds a Chinese
+    or full-width character; the line and column are named), and lines with more fields than the header. Rows
+    after the last row with any filled cell whose every cell is empty (Excel writes ',,,' when its used range
+    reaches below the table) are dropped: no sample row is ever empty. A valid sample reads as before."""
+    if raw[:4] == b"PK\x03\x04" or raw[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
+        raise UsageError(f"{what} is an Excel workbook, not a CSV file: {G0_SAVE_AS_CSV}, then give that .csv file")
+    if raw[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        raise UsageError(f"{what} is saved as UTF-16 ('Unicode' / 'Unicode Text'), not as a CSV file: "
+                         f"{G0_SAVE_AS_CSV} (in Notepad: Save As with the encoding UTF-8)")
+    try:
+        raw.decode("utf-8")
+    except UnicodeDecodeError as e:
+        start = raw.rfind(b"\n", 0, e.start) + 1
+        line = raw.count(b"\n", 0, e.start) + 1
+        k = raw.count(b",", start, e.start) + 1
+        header = raw.split(b"\n", 1)[0].decode("utf-8", "replace").strip().split(",")
+        name = header[k - 1].strip() if k <= len(header) else ""
+        raise UsageError(f"{what}: line {line}, column {_col_letter(k)}" + (f" ({name})" if name else "")
+                         + " holds text that is not UTF-8: Excel's 'CSV (Comma delimited)' saves in the Windows code "
+                         "page once a cell holds a Chinese or full-width character. Type only y or n (English "
+                         f"input) in agree_y_n, then {G0_SAVE_AS_CSV}")
+    try:
+        df = pd.read_csv(io.BytesIO(raw), dtype=str, keep_default_na=False)
+    except pd.errors.ParserError as e:
+        m = re.search(r"Expected (\d+) fields in line (\d+), saw (\d+)", str(e))
+        if m is None:
+            raise UsageError(f"{what} cannot be read as CSV: {e}")
+        raise UsageError(f"{what}: line {m[2]} has {m[3]} fields, more than the header's {m[1]}: {G0_ONE_FIELD_MORE}")
+    except (OSError, ValueError) as e:
+        raise UsageError(f"{what} cannot be read as CSV: {e}")
+    if len(df) and not isinstance(df.index, pd.RangeIndex):    # every line one field more: pandas made an index
+        raise UsageError(f"{what}: the lines below the header have {len(df.columns) + df.index.nlevels} fields, more "
+                         f"than the header's {len(df.columns)}: {G0_ONE_FIELD_MORE}")
+    if len(df):
+        filled = df.apply(_g0_filled).any(axis=1).tolist()
+        last = max((i for i, f in enumerate(filled) if f), default=-1)
+        if 0 <= last < len(df) - 1:
+            df = df.iloc[:last + 1].copy()
+    return df
+
+
+def _g0_filled(s: pd.Series) -> pd.Series:
+    """Whether each cell of a G0 sample column holds anything but blanks."""
+    return s.fillna("").astype(str).str.strip().ne("")
+
+
+def _g0_extra_cells(df: pd.DataFrame) -> list[tuple[int, str, int, int, str]]:
+    """The columns of a G0 sample outside zeno_report.G0_COLUMNS that hold a filled cell (an answer typed beside
+    agree_y_n, or over its header): (1-based column number, header or "" when it has none, filled cells, the
+    first one's row index, its text)."""
+    out = []
+    for k, c in enumerate(df.columns):
+        if str(c).strip().lower() in zeno_report.G0_COLUMNS:
+            continue
+        f = _g0_filled(df.iloc[:, k]).to_numpy()
+        if f.any():
+            r = int(f.argmax())
+            out.append((k + 1, "" if str(c).startswith("Unnamed:") else str(c).strip(), int(f.sum()), r,
+                        str(df.iloc[r, k]).strip()))
+    return out
+
+
 def _g0_answers_in(path: Path) -> int:
-    """The number of non-empty agree_y_n cells of an existing g0_sample.csv (0 when there is no such file, it is
-    empty or it has no agree_y_n column). A file that cannot be read is refused: it may hold zeno's answers."""
+    """The number of answers in an existing g0_sample.csv: its non-empty agree_y_n cells, plus the filled cells
+    outside the sample's columns (answers typed beside agree_y_n) and, when the agree_y_n header is gone, each
+    header typed over (0 when there is no such file or it is empty). A file that cannot be read is refused: it may
+    hold zeno's answers."""
     if not path.is_file() or path.stat().st_size == 0:
         return 0
     try:
-        df = pd.read_csv(path, dtype=str, keep_default_na=False)
+        df = _g0_read_csv(path.read_bytes(), path.name)
     except (OSError, ValueError) as e:
         raise UsageError(f"{path} exists but cannot be read ({e}); it may hold your G0 answers, so it is not "
                          "replaced. Choose another --out folder, or move that file first.")
     cols = {str(c).strip().lower(): c for c in df.columns}
-    if "agree_y_n" not in cols:
-        return 0
-    return int((df[cols["agree_y_n"]].astype(str).str.strip() != "").sum())
+    n = int((df[cols["agree_y_n"]].astype(str).str.strip() != "").sum()) if "agree_y_n" in cols else 0
+    n += sum(cells for _, _, cells, _, _ in _g0_extra_cells(df))
+    if "agree_y_n" not in cols:                       # its header typed over: that answer counts too
+        n += sum(1 for c in df.columns
+                 if str(c).strip().lower() not in zeno_report.G0_COLUMNS and not str(c).startswith("Unnamed:"))
+    return n
 
 
 def _g0_declared_cell(sample: Path, capital: float) -> tuple[zv.ZenoCell, float, dict[str, Any] | None, Path]:
@@ -1004,9 +1090,10 @@ def _g0_sample_match(sample_path: str, prep: zv.Prepared, capital: float) -> dic
     return the record for gates.json; UsageError (before anything is written) when a row does not match."""
     p = Path(sample_path).expanduser()
     try:
-        df = pd.read_csv(p, dtype=str, keep_default_na=False)
-    except (OSError, ValueError) as e:
+        raw = p.read_bytes()
+    except OSError as e:
         raise UsageError(f"--g0-sample {p.name} cannot be read as CSV: {e}")
+    df = _g0_read_csv(raw, f"--g0-sample {p.name}")
     chk = _g0_check_sample(df, p, prep, capital)
     if chk["same_data_files"] is False:
         _say(f"NOTE: {p.name} was drawn from other files (their sha256 differ from these), but each of its rows is an "
@@ -1073,10 +1160,7 @@ def cmd_zeno_g0_charts(args) -> int:
     target = _g0_charts_target(args.out, sample, [args.m15_bid, args.m15_ask, args.sample, news_path,
                                                   args.restricted, str(signals_report)], args.force)
     raw = sample.read_bytes()
-    try:
-        df = pd.read_csv(io.BytesIO(raw), dtype=str, keep_default_na=False)
-    except (OSError, ValueError) as e:
-        raise UsageError(f"--sample {sample.name} cannot be read as CSV: {e}")
+    df = _g0_read_csv(raw, f"--sample {sample.name}")
     if not len(df):
         raise UsageError(f"--sample {sample.name} has no rows; use the g0_sample.csv that `zeno-v1 signals` wrote")
     cell, capital, rep, _ = _g0_declared_cell(sample, 100_000.0)
@@ -1129,8 +1213,9 @@ def _g0_record(sample_path: str | None) -> dict[str, Any]:
     ceil(18 x rows / 20) y are needed from larger samples) whatever its blanks hold. Once any row holds an
     answer the sample is zeno's check [SI-60, SI-69]: it is refused ("G0 not met") when it has fewer than 20
     rows, when any row is not answered y/yes or n/no (blank, "?", ...), or when fewer than ceil(18 x rows / 20)
-    rows are y. A sample with no answer at all is only recorded. cmd_zeno_run then checks that the sample's
-    rows are signals of the data it judges (_g0_sample_match)."""
+    rows are y. A sample with no answer at all is only recorded. A sample without the agree_y_n header, or with
+    a filled cell outside zeno_report.G0_COLUMNS, is refused first: answers there would not be counted.
+    cmd_zeno_run then checks that the sample's rows are signals of the data it judges (_g0_sample_match)."""
     rec: dict[str, Any] = {"status": "confirmed_by_operator", "confirmed_by_operator": True,
                            "threshold": f"zeno agrees with >= {zeno_report.G0_MIN_AGREE} of "
                                         f"{zeno_report.G0_SAMPLE_SIZE} sampled signals",
@@ -1143,11 +1228,22 @@ def _g0_record(sample_path: str | None) -> dict[str, Any]:
     if not p.is_file():
         raise UsageError(f"--g0-sample {sample_path}: file not found")
     data = p.read_bytes()
-    try:
-        df = pd.read_csv(p, dtype=str, keep_default_na=False)
-    except (OSError, ValueError) as e:
-        raise UsageError(f"--g0-sample {p.name} cannot be read as CSV: {e}")
+    df = _g0_read_csv(data, f"--g0-sample {p.name}")
     rec.update(sample_file=str(p), sample_sha256=hashlib.sha256(data).hexdigest())
+    df.columns = [str(c).strip() for c in df.columns]
+    if "agree_y_n" not in df.columns:               # stage 1 always writes it: the answers cannot be found
+        raise UsageError(f"--g0-sample {p.name}: the header cell agree_y_n is missing (the header row ends "
+                         f"'{df.columns[-1] if len(df.columns) else ''}'): it was typed over, or its column deleted. "
+                         "Put the header agree_y_n back in the column after stop_level, with the answers below it, "
+                         "one per row, save and run again (spec: Gates, G0).")
+    extra = _g0_extra_cells(df)
+    if extra:                                        # answers typed beside agree_y_n would not be counted
+        k, name, cells, r, text = extra[0]
+        where = list(df.columns).index("agree_y_n") + 1
+        raise UsageError(f"--g0-sample {p.name}: column {_col_letter(k)} ({name or 'no header'}), beside the sample's "
+                         f"columns, holds {cells} filled cell(s) (the first on line {r + 2}: {text[:20]!r}); answers "
+                         f"are read only from agree_y_n (column {_col_letter(where)}). Move each answer into agree_y_n "
+                         f"on its own row, clear column {_col_letter(k)}, save and run again (spec: Gates, G0).")
     if "agree_y_n" in df.columns:
         ans = df["agree_y_n"].astype(str).str.strip().str.lower()
         yes = int(ans.isin(("y", "yes")).sum())
@@ -1172,10 +1268,18 @@ def _g0_record(sample_path: str | None) -> dict[str, Any]:
                              "and check it on a chart (spec: Gates, G0).")
         if holds and answered < rows:
             odd = sorted({a for a in df["agree_y_n"].astype(str).str.strip() if a.lower() not in ("y", "yes", "n", "no")})
+            wide = [a for a in odd if any("\uff01" <= ch <= "\uff5e" for ch in a)]
+            hint = ""
+            if wide:
+                hint += (f" {wide[0]!r} is a full-width letter (Chinese input in full-width mode): switch to English "
+                         "input and type y or n.")
+            if "" in odd:
+                hint += (" propkit reads the file as last saved: if you answered in Excel, save it as CSV (Ctrl+S, keep "
+                         "the CSV format) and run again.")
             raise UsageError(f"G0 not met: {p.name}: {rows - answered} of {rows} rows are not answered y or n "
                              f"({', '.join(repr(a) for a in odd[:5])}); a blank or another answer is not an "
                              f"agreement. G0 needs at least {need} y of {rows} checked signals: answer every row "
-                             "(spec: Gates, G0).")
+                             "(spec: Gates, G0)." + hint)
         if holds and yes < need:
             raise UsageError(f"G0 not met: {p.name} says you agree with {yes} of {rows} signals; the spec needs at least "
                              f"{need} of {rows} ({zeno_report.G0_MIN_AGREE} of {zeno_report.G0_SAMPLE_SIZE}). Stage 2 "
@@ -1207,6 +1311,10 @@ def cmd_zeno_run(args) -> int:
         _say(f"WARNING: {info['fallback']}.")
     if info.get("verified") is False or info.get("unverified_fields"):
         _say(f"WARNING: {info.get('warning') or 'firm rules unverified: ' + ', '.join(info['unverified_fields'])}")
+    if args.g0_sample is not None and g0.get("answered") == 0:
+        _say(f"WARNING: {Path(args.g0_sample).name} holds no y/n answers in agree_y_n. propkit reads the file as last "
+             "saved: if you answered it in Excel, save it as CSV (Ctrl+S, keep the CSV format), close it and run "
+             "again. This run goes on and records no answers (spec: Gates, G0).")
     restricted_path = _restricted_path(args, True)
     prep = _zeno_data(args, restricted_path)
     if args.g0_sample is not None:
