@@ -106,9 +106,10 @@ def test_json_numbers_equal_the_module_constants(spec):
     assert z.ZenoCell() == z.ZenoCell("evaluation", 10.0, "S1", 1.5)
 
 
-def test_grid_has_24_distinct_cells():
+def test_grid_has_36_distinct_cells():
     cells = z.grid_cells()
-    assert len(cells) == 24 == len({c.label for c in cells})
+    # updated for addendum A1: the variant master_fp adds 12 cells to the 24 (3 variants x 2 x 2 x 3)
+    assert len(cells) == 36 == len({c.label for c in cells})
     assert {c.variant for c in cells} == set(z.VARIANTS)
     assert cells[0].label == "evaluation/c5/S1/x1"
 

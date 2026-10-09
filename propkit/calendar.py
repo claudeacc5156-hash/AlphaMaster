@@ -40,8 +40,14 @@ first hour of the week belongs to SUNDAY's prop day, not Monday's; in every othe
 Other firms start their day elsewhere (PropRules.day_boundary, DAY_BOUNDARIES): firm_day(ts, boundary) and
 firm_day_start_utc(day, boundary) give the day for "cet_midnight" (= prop_day / day_start_utc, the
 default), "ny_17" (17:00 New York, US DST rule: 21:00 UTC in US summer time, 22:00 UTC in winter; the day
-is labelled with the date of New York time + 7 h, so the Sunday 18:00 New York reopen is Monday's day) and
-"utc_midnight" (00:00 UTC).
+is labelled with the date of New York time + 7 h, so the Sunday 18:00 New York reopen is Monday's day),
+"utc_midnight" (00:00 UTC) and "utc_plus3" (00:00 UTC+3 = 21:00 UTC all year, no daylight saving; the day is
+labelled with the UTC+3 calendar date, FundingPips' literal "00:00 Platform Time (UTC+3)", addendum A4).
+Weekend under "utc_plus3": like "ny_17" the Sunday 18:00 New York reopen (22:00 UTC in US summer time, 23:00
+UTC in winter) is MONDAY's day; unlike "ny_17", in US winter time the last Friday hour (21:00-22:00 UTC =
+16:00-17:00 New York) is after 21:00 UTC and so forms a short SATURDAY day of its own (in US summer time the
+Friday 17:00 New York close is 21:00 UTC, so no Saturday day exists). Bootstrap week blocks (Sunday..Saturday)
+keep that Saturday day with its own week.
 """
 from __future__ import annotations
 
@@ -73,14 +79,18 @@ SESSION_NAMES = ("asia", "london", "newyork", "overlap")
 
 # Where a firm's day starts (PropRules.day_boundary): "cet_midnight" = 00:00 CE(S)T (FTMO, the default and
 # the prop_day of this module), "ny_17" = 17:00 New York (the forex/metals broker day, US DST rule; a broker
-# server clock of New York + 7 h shows it as 00:00), "utc_midnight" = 00:00 UTC.
-DAY_BOUNDARIES = ("cet_midnight", "ny_17", "utc_midnight")
+# server clock of New York + 7 h shows it as 00:00), "utc_midnight" = 00:00 UTC, "utc_plus3" = 00:00 UTC+3
+# = 21:00 UTC all year (no DST; FundingPips' literal "Platform Time (UTC+3)", addendum A4).
+DAY_BOUNDARIES = ("cet_midnight", "ny_17", "utc_midnight", "utc_plus3")
 DEFAULT_DAY_BOUNDARY = "cet_midnight"
-_BOUNDARY_LABELS = {"cet_midnight": "00:00 CE(S)T", "ny_17": "17:00 New York", "utc_midnight": "00:00 UTC"}
+_BOUNDARY_LABELS = {"cet_midnight": "00:00 CE(S)T", "ny_17": "17:00 New York", "utc_midnight": "00:00 UTC",
+                    "utc_plus3": "00:00 UTC+3"}
 _BOUNDARY_UTC_TEXT = {"cet_midnight": "22:00 UTC in EU summer time, 23:00 UTC in winter",
                       "ny_17": "21:00 UTC in US summer time, 22:00 UTC in winter",
-                      "utc_midnight": "00:00 UTC all year"}
+                      "utc_midnight": "00:00 UTC all year",
+                      "utc_plus3": "21:00 UTC all year, no daylight saving"}
 NY17_HOURS_AHEAD_OF_NY = 7   # 17:00 New York + 7 h = 00:00 of the next date: the "ny_17" day's label
+UTC_PLUS3_HOURS = 3          # 21:00 UTC + 3 h = 00:00 of the next date: the "utc_plus3" day's label
 
 
 # ---------------------------------------------------------------------------------------
@@ -327,15 +337,15 @@ def day_start_utc(day):
 
 
 def check_day_boundary(boundary) -> str:
-    """Return boundary if it is one of DAY_BOUNDARIES ("cet_midnight", "ny_17", "utc_midnight"), else raise
-    ValueError naming the allowed values."""
+    """Return boundary if it is one of DAY_BOUNDARIES ("cet_midnight", "ny_17", "utc_midnight", "utc_plus3"),
+    else raise ValueError naming the allowed values."""
     if not isinstance(boundary, str) or boundary not in DAY_BOUNDARIES:
         raise ValueError(f"day_boundary must be one of {', '.join(DAY_BOUNDARIES)}; got {boundary!r}")
     return boundary
 
 
 def boundary_label(boundary: str = DEFAULT_DAY_BOUNDARY) -> str:
-    """Plain text of a day boundary: '00:00 CE(S)T', '17:00 New York' or '00:00 UTC'."""
+    """Plain text of a day boundary: '00:00 CE(S)T', '17:00 New York', '00:00 UTC' or '00:00 UTC+3'."""
     return _BOUNDARY_LABELS[check_day_boundary(boundary)]
 
 
@@ -350,7 +360,10 @@ def firm_day(ts, boundary: str = DEFAULT_DAY_BOUNDARY):
     boundary "cet_midnight" (default): prop_day(ts), the CE(S)T calendar date (unchanged code path);
     "ny_17": the calendar date of New York time + 7 h, so the day runs 17:00 New York -> 17:00 New York
     (21:00 UTC in US summer time, 22:00 UTC in winter; 23 h or 25 h long on the US DST change days) and the
-    Sunday 18:00 New York reopen belongs to MONDAY's day; "utc_midnight": the UTC calendar date.
+    Sunday 18:00 New York reopen belongs to MONDAY's day; "utc_midnight": the UTC calendar date;
+    "utc_plus3": the calendar date of UTC + 3 h, so the day runs 21:00 UTC -> 21:00 UTC all year (always 24 h)
+    and the Sunday reopen is MONDAY's day, while in US winter time the Friday 21:00-22:00 UTC hour is a
+    short SATURDAY day (see the module docstring).
     ts: UTC epoch seconds (checked as everywhere in this module)."""
     b = check_day_boundary(boundary)
     if b == "cet_midnight":
@@ -358,6 +371,8 @@ def firm_day(ts, boundary: str = DEFAULT_DAY_BOUNDARY):
     arr, scalar = _as_seconds(ts)
     if b == "utc_midnight":
         return _out(arr // SECONDS_PER_DAY, scalar)
+    if b == "utc_plus3":
+        return _out((arr + UTC_PLUS3_HOURS * SECONDS_PER_HOUR) // SECONDS_PER_DAY, scalar)
     shifted = arr + (_ny_raw(arr) + NY17_HOURS_AHEAD_OF_NY) * SECONDS_PER_HOUR
     return _out(shifted // SECONDS_PER_DAY, scalar)
 
@@ -366,7 +381,8 @@ def firm_day_start_utc(day, boundary: str = DEFAULT_DAY_BOUNDARY):
     """UTC epoch seconds at which the firm day(s) `day` start for a day boundary (scalar or array).
 
     "cet_midnight": day_start_utc(day); "ny_17": 17:00 New York on the PREVIOUS calendar date (the US DST
-    change happens at 02:00 local, never at 17:00, so the instant is unique); "utc_midnight": day x 86400.
+    change happens at 02:00 local, never at 17:00, so the instant is unique); "utc_midnight": day x 86400;
+    "utc_plus3": day x 86400 - 3 h (21:00 UTC on the previous date).
     The day ends at firm_day_start_utc(day + 1, boundary)."""
     b = check_day_boundary(boundary)
     if b == "cet_midnight":
@@ -374,6 +390,8 @@ def firm_day_start_utc(day, boundary: str = DEFAULT_DAY_BOUNDARY):
     arr, scalar = _as_days(day)
     if b == "utc_midnight":
         return _out(arr * SECONDS_PER_DAY, scalar)
+    if b == "utc_plus3":
+        return _out(arr * SECONDS_PER_DAY - UTC_PLUS3_HOURS * SECONDS_PER_HOUR, scalar)
     local = (arr - 1) * SECONDS_PER_DAY + 17 * SECONDS_PER_HOUR      # 17:00 New York wall clock read as UTC
     utc = local - _ny_raw(local + 5 * SECONDS_PER_HOUR) * SECONDS_PER_HOUR
     return _out(utc, scalar)

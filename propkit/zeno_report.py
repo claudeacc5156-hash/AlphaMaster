@@ -16,10 +16,17 @@ Two stages, in this order (the spec's change policy and gate G0):
            x1.5) [SI-27]; the entry and stop shown are the chart's (the data at costs x1, [SI-66]) and the
            cell's prices are in the *_at_costs columns. run_stage's caller checks that a G0 sample belongs
            to the data it judges (g0_sample_check, [SI-69]).
-  stage 2  run_stage(prep, rules, rules_info, ...) -> the pre-registered grid (24 cells: variant x commission
-           x spread base x cost multiplier), metrics per side (long, short, combined) and period (all, each
-           year, the four G3 periods), the prop evaluator (path, day-block bootstrap, largest size, history
-           uncertainty) on the judging cell and its master twin, and the gates G0-G5 plus the kill rule.
+  stage 2  run_stage(prep, rules, rules_info, ...) -> the pre-registered grid (36 cells: variant {evaluation,
+           master, master_fp} x commission x spread base x cost multiplier), metrics per side (long, short,
+           combined) and period (all, each year, the four G3 periods), the prop evaluator (path, day-block
+           bootstrap, largest size, history uncertainty) on the judging cell, its master twin and its master_fp
+           twin, the judging cell again with the firm day at 00:00 UTC+3 (addendum A4), and the gates G0-G5
+           plus the kill rule (G4 per addendum A5).
+
+Addendum A (propkit/specs/zeno_pullback_v1_addendum_A.md, its sha256 in the report header) adds the Master run
+"master_fp" (A1), the Master margin cap (A2), the verified FundingPips preset (A3), the "utc_plus3" day-boundary
+sensitivity (A4) and G4 on the higher of the two P(daily-loss breach) values (A5). Neither Master run feeds
+G1-G5; --master-primary records which one zeno chose as the primary Master result (A1).
 
 The judging cell is (evaluation, commission 10 USD/lot round trip, the WORSE spread base, costs x1.5); the
 worse base is the one with the lower combined net expectancy in R per position at those settings, a tie
@@ -32,6 +39,7 @@ annualised; *_pct fields are percent of the initial capital. Readings of the spe
 """
 from __future__ import annotations
 
+import dataclasses
 import datetime as _dt
 import hashlib
 import math
@@ -74,6 +82,33 @@ G4_MAX_P_MAX = 0.10
 DEFAULT_SEED = 7
 INFO_HORIZON_DAYS = 60
 DAY_KEY = "ny_17"                      # the broker server day (D21) for daily returns [SI-30]
+SENSITIVITY_DAY_BOUNDARY = "utc_plus3"  # addendum A4: the judging cell again with the firm day at 00:00 UTC+3
+MASTER_PRIMARY_CHOICES = ("master_fp", "master")
+DEFAULT_MASTER_PRIMARY = "master_fp"   # addendum A1: also when zeno has not answered before the first result
+MASTER_ROLES = {   # addendum A1's wording, by the --master-primary choice
+    "master_fp": {"master_fp": "the primary Master result", "master": "the literal-rule comparison",
+                  "why": "zeno answered \"Widen it\" to the card in zeno's thread, or did not answer before the first "
+                         "result was shown (addendum A1)"},
+    "master": {"master": "the primary Master result", "master_fp": "a sensitivity run",
+               "why": "zeno answered \"Keep 4 events\" to the card in zeno's thread (addendum A1)"}}
+MASTER_NOT_GATED = "Neither Master run feeds G1-G5 (addendum A1)."
+# addendum A3: FundingPips' Master rules that no run simulates; the report lists them as not modelled (values from
+# research/FUNDINGPIPS_RULES_2026-10-08.md, section 3)
+A3_NOT_MODELLED = (
+    ("Master minimum reward", "1% of the account size (1,000 USD on 100,000 USD) [VP 1SF, RWD]"),
+    ("Master Monthly 100% consistency rule", "no single trading day may account for more than 35% of the total "
+     "profit; the Monthly cycle also needs 7 profitable days of 0.5% or more of the account size [VP 1SF]"),
+    ("Striking System ([U] applicability)", "a closed and floating loss of 1% of the account (1,000 USD) on one "
+     "trade idea gives a warning, and the 4th warning breaches the account [VP 1SF]; whether it applies to this "
+     "account is [U]"))
+# the FundingPips preset's last "unmodelled" item says its Master rules "are handled by the strategy's Master
+# variant"; the preset stays as given and the report adds what the code does with each of them
+MASTER_CLAIM = "handled by the strategy's Master variant"
+UNMODELLED_MASTER_NOTE = (
+    "[report note, not in the rules file: of these, the code models the news window (master_fp: FundingPips' "
+    "restricted list, addendum A1; master: rule 9's four events, D20 and D23) and dynamic metals leverage (the "
+    "margin cap, addendum A2), and never reaches the daily auto-close (rule 6 closes every trade at 16:30 New York, "
+    "D17); it does not simulate the profit deduction or the Striking System (addendum A3)]")
 STAGE1_CELL = zv.ZenoCell()            # evaluation / 10 / S1 / x1.5 [SI-27]
 OUTCOME_KEYS = {"-1R": "n_outcome_minus_1r", "+1R(BE)": "n_outcome_be_plus_1r", "+3R": "n_outcome_plus_3r",
                 "time-exit": "n_outcome_time_exit", "other": "n_outcome_other"}
@@ -122,8 +157,9 @@ SPEC_READINGS = (
               "report.json"),
     ("SI-31", "G4 'before target' = no horizon (until pass or breach, cap 2,520 market days); 60 trading days "
               "printed beside it"),
-    ("SI-32", "FundingPips rules are unverified: the placeholder preset holds only zeno's account facts, every field "
-              "[U]; G4 is not evaluated"),
+    ("SI-32", "G4 needs the verified FundingPips rules with a profit target and a max-loss rule: the preset "
+              "fundingpips-1step-flex (addendum A3, A5); under the placeholder preset (zeno's account facts only, "
+              "every field [U]) or another firm's rules G4 is not evaluated"),
     ("SI-41", "+2R hit rate = positions that filled the partial / all; +4R after +2R = runners at +4R / partials; "
               "a 0.01-lot position that reaches +2R fills no partial (half rounds to 0), so it is not a +2R hit and "
               "is counted as n_tp1_reached_without_partial; losing streak = consecutive positions with net P&L < 0, "
@@ -159,6 +195,16 @@ SPEC_READINGS = (
               "same chart entry and stop; every row must be answered once one is, and >= 18 of 20 must be y"),
     ("SI-70", "Master: a fill at the open of the bar holding T - 10 min (only after a data gap) is closed at that "
               "same open; a fill after T - 10 min is kept"),
+    ("A1", "master_fp = master plus FundingPips' restricted list: no entry when the trigger close or the entry fill "
+           "lies in [T - 5 min, T_end + 5 min] or on the New York date of an event without a time; the D23 close "
+           "for every restricted event with a time (a fill in the bar holding T - 10 min is closed at its own open, "
+           "as SI-70)"),
+    ("A2", "both Master runs: the tiered margin at the entry fill price must fit the closed balance; D13 lots are cut "
+           "to the largest 0.01-lot size that fits, an entry that cannot hold 0.01 lot is blocked "
+           "(margin_cap_below_lot_step); the evaluation run is counted at a flat 1:10 and 1:30, not capped"),
+    ("A4-A5", "the judging cell's prop evaluator also runs with the firm day at 00:00 UTC+3 (21:00 UTC); G4 uses the "
+              "higher P(daily-loss breach) of the two firm days (the default's on a tie) and the default firm "
+              "day's P(max-loss breach)"),
 )
 
 
@@ -226,6 +272,27 @@ def spec_identity() -> dict[str, Any]:
         out[f"{key}_matches"] = got == want
     out["all_match"] = bool(out["md_matches"] and out["json_matches"])
     return out
+
+
+def addendum_identity() -> dict[str, Any]:
+    """Addendum A's packaged copy (propkit/specs/zeno_pullback_v1_addendum_A.md): file, recorded and packaged
+    sha256, whether they match."""
+    p = zv.SPECS_DIR / zv.ADDENDUM_A_FILE
+    got = report_mod.file_sha256(p) if p.is_file() else None
+    return {"file": f"propkit/specs/{zv.ADDENDUM_A_FILE}", "sha256_recorded": zv.ADDENDUM_A_SHA256,
+            "sha256_packaged": got, "matches": got == zv.ADDENDUM_A_SHA256,
+            "changes": "only how the prop firm is simulated (A1-A5); zeno's 12 rules, D1-D24, the costs and the gates "
+                       "are unchanged"}
+
+
+def restricted_info(prep: zv.Prepared) -> dict[str, Any] | None:
+    """The restricted calendar's summary (addendum A1) with whether it is the packaged file (sha256), or None."""
+    if prep.restricted is None:
+        return None
+    s = prep.restricted.summary()
+    s["packaged_sha256"] = zv.RESTRICTED_SHA256
+    s["is_packaged_file"] = s.get("sha256") == zv.RESTRICTED_SHA256
+    return s
 
 
 def data_info(prep: zv.Prepared) -> dict[str, Any]:
@@ -441,14 +508,28 @@ def signals_stage(prep: zv.Prepared, cell: zv.ZenoCell | None = None, capital: f
         "setup_events_by_side": {side: _counts(ev.loc[ev["side"] == side, "event"]) for side in ("long", "short")},
         "not_checked": STAGE1_NOT_CHECKED,
         "news_unscheduled": zv.unscheduled_counts(prep, dec),
-        "block_reasons": {k: v for k, v in zv.BLOCK_REASONS.items() if k not in zv.STATE_REASONS},
+        "block_reasons": {k: v for k, v in zv.BLOCK_REASONS.items() if k not in zv.STATE_REASONS
+                          and _reason_applies(k, cell.variant)},
         "g0": {"sample_size_asked": int(sample), "sample_size": int(len(g0)), "seed": int(seed),
                "min_agree": G0_MIN_AGREE, "instructions": G0_INSTRUCTIONS,
                "short_sample_note": None if len(g0) >= sample else
                f"only {len(g0)} eligible signals exist, so the sample holds all of them"},
         "no_results": "This stage writes no P&L, R multiple, hit rate, outcome or price after an entry.",
     }
+    if cell.variant == "master_fp":                       # addendum A1: the restricted list this cell uses
+        report["addendum_a"] = addendum_identity()
+        report["restricted"] = restricted_info(prep)
     return report_mod.clean(report), {"signals": sig, "decisions": dec, "g0_sample": g0}
+
+
+def _reason_applies(reason: str, variant: str) -> bool:
+    """Whether a blocking reason can occur in a variant: the restricted window only in master_fp (addendum A1),
+    the margin cap only in the Master variants (A2), every other reason everywhere."""
+    if reason == "fp_restricted_window":
+        return variant == "master_fp"
+    if reason == "margin_cap_below_lot_step":
+        return variant in zv.MASTER_VARIANTS
+    return True
 
 
 def render_signals_markdown(report: Mapping[str, Any]) -> str:
@@ -488,8 +569,14 @@ def render_signals_markdown(report: Mapping[str, Any]) -> str:
           f"- D1 range: from {d.get('range_start_utc', zv.RANGE_START_TEXT)} to the lock [SI-62]"
           + (f"; {d['range_note']}." if d.get("range_note") else "; the data starts inside it."),
           f"- news: {_news_line(r['news'])}",
-          f"- {_unscheduled_line(r.get('news_unscheduled'))}.",
-          f"- spec {r['spec']['spec_id']} v{r['spec']['spec_version']}: packaged copies match the recorded sha256: "
+          f"- {_unscheduled_line(r.get('news_unscheduled'))}."]
+    if r.get("restricted"):
+        L.append(f"- restricted events (variant master_fp, addendum A1): {_restricted_line(r['restricted'])}.")
+    if r.get("addendum_a"):
+        a = r["addendum_a"]
+        L.append(f"- addendum A: {a['file']} (sha256 {a['sha256_packaged']}; matches the recorded value: "
+                 f"{'yes' if a['matches'] else 'NO'}).")
+    L += [f"- spec {r['spec']['spec_id']} v{r['spec']['spec_version']}: packaged copies match the recorded sha256: "
           f"{'yes' if r['spec']['all_match'] else 'NO'}.", "",
           "## Files", "",
           "- signals.csv: one row per trigger (status eligible or the first blocking reason, every blocking reason, "
@@ -502,18 +589,45 @@ def render_signals_markdown(report: Mapping[str, Any]) -> str:
     return report_mod._ascii("\n".join(L))
 
 
-def _unscheduled_line(nu: Mapping[str, Any] | None, twin: Mapping[str, Any] | None = None) -> str:
-    """One report line on what the unscheduled rows do before their instant [SI-63]."""
+def _unscheduled_line(nu: Mapping[str, Any] | None, twin: Mapping[str, Any] | None = None,
+                      twin_fp: Mapping[str, Any] | None = None) -> str:
+    """One report line on what the unscheduled rows do before their instant [SI-63]. nu: the counts of the cell
+    itself (zeno_v1.unscheduled_counts); when it is a master_fp cell's (stage 1 with --variant master_fp), the
+    restricted window's counts follow in a clause of their own. twin, twin_fp: the run's Master twins."""
     if not isinstance(nu, Mapping):
         return "unscheduled rows: n/a"
     txt = (f"unscheduled rows: {nu.get('n_rows', 0)}. {UNSCHEDULED_NOTE}: {nu.get('n_triggers_flagged', 0)} "
            f"trigger(s) were blocked by news only in the 30 min before an unscheduled row "
            f"({nu.get('n_triggers_blocked_only_before_unscheduled', 0)} with no other reason; decisions column "
            "news_pre_unscheduled)")
+    if "fp_n_rows" in nu:
+        txt += (f"; the restricted window (variant master_fp) blocked {nu.get('fp_n_triggers_flagged', 0)} trigger(s) "
+                f"only in the 5 min before one of the {nu.get('fp_n_rows', 0)} unscheduled restricted rows (decisions "
+                f"column fp_pre_unscheduled), and {nu.get('n_triggers_blocked_only_before_unscheduled_any', 0)} "
+                "trigger(s) were blocked only before unscheduled rows (news and/or the restricted window) with no "
+                "other reason")
     if isinstance(twin, Mapping):
         txt += (f"; the master twin closed {len(twin.get('master_closes_only_for_unscheduled') or [])} position(s) "
                 "only for an unscheduled row")
+    if isinstance(twin_fp, Mapping):
+        txt += (f"; the master_fp twin closed {len(twin_fp.get('master_closes_only_for_unscheduled') or [])} "
+                f"position(s) only for an unscheduled row, and its restricted window blocked "
+                f"{twin_fp.get('fp_n_triggers_flagged', 0)} trigger(s) only in the 5 min before one of the "
+                f"{twin_fp.get('fp_n_rows', 0)} unscheduled restricted rows")
     return txt
+
+
+def _restricted_line(rs: Mapping[str, Any] | None) -> str:
+    """One report line on FundingPips' restricted calendar (addendum A1)."""
+    if not isinstance(rs, Mapping):
+        return "none"
+    unk = ", ".join(f"{u['event']} {u['date_et']}" for u in rs.get("unknown_time_rows") or []) or "none"
+    return (f"{rs.get('n_events_known_time')} events with a time ({rs.get('fedchair_testimony')} Fed Chair testimonies "
+            f"at 180 min, {rs.get('fedchair_other')} other Fed Chair appearances at 60 min, the rest releases), "
+            f"{rs.get('n_unknown_time')} without a time (whole New York day blocked: {unk}), "
+            f"{rs.get('n_unscheduled')} unscheduled; window {rs.get('window')}; {rs.get('first_utc')} .. "
+            f"{rs.get('last_utc')}; file {rs.get('source')} (sha256 {rs.get('sha256')}"
+            + ("" if rs.get("is_packaged_file") else "; NOT the packaged file") + ")")
 
 
 def _news_line(news: Any) -> str:
@@ -765,21 +879,49 @@ def g4_applicability(rules: PropRules | None, rules_info: Mapping[str, Any] | No
     return True, ""
 
 
-def g4_gate(applicable: bool, reason: str, boot_result: Mapping[str, Any] | None, judged_at: str) -> dict[str, Any]:
+def g4_gate(applicable: bool, reason: str, boot_result: Mapping[str, Any] | None, judged_at: str,
+            sensitivity: tuple[str, Mapping[str, Any]] | None = None,
+            day_boundary: str | None = None) -> dict[str, Any]:
     """G4 from the judging cell's bootstrap (horizon: until pass or breach, [SI-31]); not_evaluated with the
-    reason when g4_applicability says so or no bootstrap ran."""
-    thr = f"P(daily-loss breach before target) <= {G4_MAX_P_DAILY:g} and P(max-loss breach before target) <= " \
-          f"{G4_MAX_P_MAX:g}"
+    reason when g4_applicability says so or no bootstrap ran.
+
+    Addendum A5: with sensitivity = (its firm-day boundary, the judging cell's bootstrap under it) and
+    day_boundary = the rules' own boundary, G4's P(daily-loss breach) is the HIGHER of the two (the rules' own
+    on a tie), and the value names the boundary that set it (p_breach_daily_set_by) and lists both
+    (p_breach_daily_by_boundary). P(max-loss breach) is the rules' own boundary's (A5 names one value);
+    both are listed (p_breach_max_by_boundary)."""
+    if sensitivity is None:
+        thr = f"P(daily-loss breach before target) <= {G4_MAX_P_DAILY:g} and P(max-loss breach before target) <= " \
+              f"{G4_MAX_P_MAX:g}"
+    else:
+        thr = f"the higher P(daily-loss breach before target) of the two firm days <= {G4_MAX_P_DAILY:g} and " \
+              f"P(max-loss breach before target) <= {G4_MAX_P_MAX:g} (addendum A5)"
     if not applicable or boot_result is None:
         return _gate("not_evaluated", judged_at, None, thr, f"G4 is not evaluated: {reason or 'no bootstrap ran'}.",
                      reason=reason or "no bootstrap ran")
     pd_, pm = float(boot_result["p_breach_daily"]), float(boot_result["p_breach_max"])
+    se_d = boot_result.get("se_breach_daily")
+    value: dict[str, Any] = {"p_breach_daily": pd_, "se_breach_daily": se_d, "p_breach_max": pm,
+                             "se_breach_max": boot_result.get("se_breach_max"), "n_sims": boot_result.get("n_sims"),
+                             "horizon_days": boot_result.get("horizon_days")}
+    extra = ""
+    if sensitivity is not None:
+        own = day_boundary or "rules"
+        alt, alt_boot = sensitivity
+        pd_alt = float(alt_boot["p_breach_daily"])
+        set_by = alt if pd_alt > pd_ else own
+        value["p_breach_daily_by_boundary"] = {own: pd_, alt: pd_alt}
+        value["p_breach_max_by_boundary"] = {own: pm, alt: float(alt_boot["p_breach_max"])}
+        value["p_breach_daily_set_by"] = set_by
+        value["p_breach_daily_tie"] = pd_alt == pd_
+        if pd_alt > pd_:
+            pd_, se_d = pd_alt, alt_boot.get("se_breach_daily")
+            value["p_breach_daily"], value["se_breach_daily"] = pd_, se_d
+        extra = (f" (the higher of {own} {value['p_breach_daily_by_boundary'][own]:.4f} and {alt} {pd_alt:.4f}: set by "
+                 f"{set_by}{', a tie' if value['p_breach_daily_tie'] else ''}; P(max-loss breach) under {own})")
     ok = pd_ <= G4_MAX_P_DAILY and pm <= G4_MAX_P_MAX
-    return _gate("pass" if ok else "fail", judged_at,
-                 {"p_breach_daily": pd_, "se_breach_daily": boot_result.get("se_breach_daily"), "p_breach_max": pm,
-                  "se_breach_max": boot_result.get("se_breach_max"), "n_sims": boot_result.get("n_sims"),
-                  "horizon_days": boot_result.get("horizon_days")}, thr,
-                 f"P(daily-loss breach before target) {pd_:.4f}, P(max-loss breach before target) {pm:.4f} "
+    return _gate("pass" if ok else "fail", judged_at, value, thr,
+                 f"P(daily-loss breach before target) {pd_:.4f}{extra}, P(max-loss breach before target) {pm:.4f} "
                  f"({'within' if ok else 'outside'} the limits).")
 
 
@@ -919,6 +1061,11 @@ def prop_stack(equity: pd.DataFrame, trades: pd.DataFrame, rules: PropRules, n_s
 # ---------------------------------------------------------------------------------------
 # stage 2: the run
 
+def a3_not_modelled() -> list[str]:
+    """Addendum A3's not-modelled Master rules as report lines ("name: what it is")."""
+    return [f"{name}: {text}" for name, text in A3_NOT_MODELLED]
+
+
 def _rules_section(rules: PropRules, info: Mapping[str, Any] | None) -> dict[str, Any]:
     info = dict(info or {})
     unverified = list(info.get("unverified_fields") or [])
@@ -926,7 +1073,8 @@ def _rules_section(rules: PropRules, info: Mapping[str, Any] | None) -> dict[str
     return {"rules": rules.to_dict(), "describe": rules.describe(), "info": info,
             "unverified": bool(firm_unverified or unverified),
             "warning": info.get("warning") or (
-                f"firm rules UNVERIFIED: {', '.join(unverified)} are [U] assumptions" if unverified else None)}
+                f"firm rules UNVERIFIED: {', '.join(unverified)} are [U] assumptions" if unverified else None),
+            "u_tags": dict(info.get("u_tags") or {}), "unmodelled": list(info.get("unmodelled") or [])}
 
 
 def run_stage(prep: zv.Prepared, rules: PropRules, rules_info: Mapping[str, Any] | None = None, *,
@@ -935,20 +1083,29 @@ def run_stage(prep: zv.Prepared, rules: PropRules, rules_info: Mapping[str, Any]
               reference: tuple[PropRules, Mapping[str, Any]] | None = None,
               m1: tuple[Any, Any] | None = None, g0: Mapping[str, Any] | None = None,
               inputs: Mapping[str, Any] | None = None, cells: Sequence[zv.ZenoCell] | None = None,
+              master_primary: str = DEFAULT_MASTER_PRIMARY,
               progress: Callable[[str], None] | None = None) -> tuple[dict[str, Any], dict[str, pd.DataFrame]]:
     """Stage 2: every cell of the pre-registered grid (zeno_v1.grid_cells; cells= only for tests), the
-    metrics, the judging cell, the prop evaluator (judging cell and its master twin under `rules`, and the
-    judging cell under reference rules if given), the gates and, with m1 = (bid, ask) M1 files or frames,
-    the D15 second run of the judging cell beside the first. The capital is rules.initial_capital.
+    metrics, the judging cell, the prop evaluator (the judging cell, its master twin and its master_fp twin
+    under `rules`; the judging cell again with the firm day moved to 00:00 UTC+3, addendum A4; the judging
+    cell under reference rules if given), the gates (G4 per addendum A5) and, with m1 = (bid, ask) M1 files or
+    frames, the D15 second run of the judging cell beside the first. The capital is rules.initial_capital.
+    The master_fp cells need prep built with the restricted calendar (zeno_v1.read_restricted_csv).
+    master_primary: "master_fp" (default) or "master", which Master run is the primary Master result (A1).
 
     Returns (report, tables): report holds every section of report.md and report.json, with report["gates"]
     the gates.json content; tables: trades (the judging cell's legs), positions, decisions (judging cell),
     grid, positions_all_cells and, with m1, m1_diff."""
     say = progress or (lambda s: None)
     t_start = time.perf_counter()
+    if master_primary not in MASTER_PRIMARY_CHOICES:
+        raise ValueError(f"master_primary must be one of {MASTER_PRIMARY_CHOICES}, got {master_primary!r}")
     c0 = float(rules.initial_capital)
     periods = period_table(prep)
     cells = list(cells) if cells is not None else zv.grid_cells()
+    if prep.restricted is None and any(c.variant == "master_fp" for c in cells):
+        raise ValueError("the master_fp cells need FundingPips' restricted calendar: prepare(frame, news, "
+                         "restricted=zeno_v1.read_restricted_csv()) (addendum A1)")
     rows: list[dict[str, Any]] = []
     results: dict[str, zv.CellResult] = {}
     all_pos = []
@@ -963,6 +1120,7 @@ def run_stage(prep: zv.Prepared, rules: PropRules, rules_info: Mapping[str, Any]
     j = worse_base(grid)
     jcell = zv.ZenoCell(JUDGING_VARIANT, JUDGING_COMMISSION, j["spread_base"], JUDGING_COST_MULT)
     twin = zv.ZenoCell("master", JUDGING_COMMISSION, j["spread_base"], JUDGING_COST_MULT)
+    twin_fp = zv.ZenoCell("master_fp", JUDGING_COMMISSION, j["spread_base"], JUDGING_COST_MULT)
     if jcell.label not in results:
         raise ValueError(f"the judging cell {jcell.label} is not among the cells run")
     jres = results[jcell.label]
@@ -976,19 +1134,38 @@ def run_stage(prep: zv.Prepared, rules: PropRules, rules_info: Mapping[str, Any]
     say(f"prop evaluator: judging cell {jcell.label}")
     prop["judging"] = {"cell": jcell.label, **prop_stack(jeq, jtr, rules, n_sims, seed, alpha, history_reps, horizon,
                                                           INFO_HORIZON_DAYS if applicable else None, say)}
-    if twin.label in results:
-        say(f"prop evaluator: master twin {twin.label}")
-        teq, ttr = zv.cell_equity(prep, results[twin.label])
-        prop["master_twin"] = {"cell": twin.label, **prop_stack(teq, ttr, rules, n_sims, seed, alpha, history_reps,
-                                                                  horizon, None, say)}
+    # addendum A4: the same judging cell under the same rules with the other firm day (00:00 UTC+3 = 21:00 UTC)
+    alt = "ny_17" if rules.day_boundary == SENSITIVITY_DAY_BOUNDARY else SENSITIVITY_DAY_BOUNDARY
+    rules_alt = dataclasses.replace(rules, day_boundary=alt,
+                                    name=f"{rules.name} [firm day {calendar.boundary_label(alt)}: addendum A4 "
+                                         "sensitivity]")
+    say(f"prop evaluator: judging cell {jcell.label} with the firm day at {calendar.boundary_label(alt)} (A4)")
+    prop["judging_day_sensitivity"] = {"cell": jcell.label, "day_boundary_default": rules.day_boundary,
+                                       **prop_stack(jeq, jtr, rules_alt, n_sims, seed, alpha, history_reps, horizon,
+                                                    INFO_HORIZON_DAYS if applicable else None, say)}
+    for key, cell in (("master_twin", twin), ("master_fp_twin", twin_fp)):
+        if cell.label in results:
+            say(f"prop evaluator: {key.replace('_', ' ')} {cell.label}")
+            teq, ttr = zv.cell_equity(prep, results[cell.label])
+            prop[key] = {"cell": cell.label, **prop_stack(teq, ttr, rules, n_sims, seed, alpha, history_reps,
+                                                          horizon, None, say)}
     if reference is not None:
         rrules, rinfo = reference
         say(f"prop evaluator: judging cell under the reference rules {rrules.name}")
         prop["reference"] = {"cell": jcell.label, "rules_section": _rules_section(rrules, rinfo),
                              **prop_stack(jeq, jtr, rrules, n_sims, seed, alpha, history_reps, INFO_HORIZON_DAYS,
                                           None, say)}
-    g4 = g4_gate(applicable, reason, prop["judging"]["bootstrap"] if applicable else None, jcell.label)
+    g4 = g4_gate(applicable, reason, prop["judging"]["bootstrap"] if applicable else None, jcell.label,
+                 sensitivity=(alt, prop["judging_day_sensitivity"]["bootstrap"]), day_boundary=rules.day_boundary)
     gates = gates_from(grid, g4, g0)
+    restricted = restricted_info(prep)
+    gates["addendum_a"] = addendum_identity()
+    gates["restricted_calendar"] = ({"file": restricted.get("source"), "sha256": restricted.get("sha256"),
+                                     "is_packaged_file": restricted.get("is_packaged_file")} if restricted else None)
+    roles = MASTER_ROLES[master_primary]
+    gates["master_primary"] = {"primary": master_primary, "roles": {k: v for k, v in roles.items() if k != "why"},
+                               "why": roles["why"], "gated": MASTER_NOT_GATED}
+    gates["day_boundaries"] = day_boundary_summary(prop, rules.day_boundary, alt, g4)
     tables: dict[str, pd.DataFrame] = {
         "trades": jres.legs, "positions": jres.positions, "decisions": jres.decisions, "grid": grid,
         "positions_all_cells": pd.concat(all_pos, ignore_index=True) if all_pos else pd.DataFrame()}
@@ -1007,21 +1184,29 @@ def run_stage(prep: zv.Prepared, rules: PropRules, rules_info: Mapping[str, Any]
                       "note": "the gates are judged on the first (M15) run; this second run is reported beside it "
                               "(D15)"}
     daily_alt = {}
-    for key in ("cet_midnight", "utc_midnight", DAY_KEY):
+    for key in ("cet_midnight", "utc_midnight", DAY_KEY, SENSITIVITY_DAY_BOUNDARY):
         d = st.daily_returns_from_equity(jeq, c0, by=key)
         daily_alt[key] = daily_metrics(d, c0)
     trig = jres.decisions[jres.decisions["event"] == "trigger"]
+    rules_sec = _rules_section(rules, rules_info)
+    rules_sec["not_modelled_addendum_a3"] = a3_not_modelled()           # addendum A3
+    rules_sec["unmodelled_master_note"] = (UNMODELLED_MASTER_NOTE if any(MASTER_CLAIM in str(x)
+                                                                         for x in rules_sec["unmodelled"]) else None)
     report = {
         "header": HEADER, "stage": "run (stage 2, the pre-registered grid)",
         "generated_utc": calendar.utc_str(int(time.time())), "propkit_version": propkit.__version__,
-        "spec": spec_identity(), "inputs": dict(inputs or {}), "data": data_info(prep), "news": news_info(prep),
+        "spec": spec_identity(), "addendum_a": addendum_identity(), "inputs": dict(inputs or {}),
+        "data": data_info(prep), "news": news_info(prep), "restricted": restricted,
         "news_unscheduled": {"judging": jres.meta["news_unscheduled"],
                              "master_twin": results[twin.label].meta["news_unscheduled"]
-                             if twin.label in results else None, "note": UNSCHEDULED_NOTE},
-        "rules_section": _rules_section(rules, rules_info),
+                             if twin.label in results else None,
+                             "master_fp_twin": results[twin_fp.label].meta["news_unscheduled"]
+                             if twin_fp.label in results else None, "note": UNSCHEDULED_NOTE},
+        "rules_section": rules_sec,
         "settings": {"capital_usd": c0, "n_sims": int(n_sims), "seed": int(seed), "alpha": float(alpha),
                      "history_reps": int(history_reps), "n_cells": len(cells), "day_key_daily_returns": DAY_KEY,
-                     "risk_pct": {v: zv.RISK_PCT[v] for v in zv.VARIANTS}, "n_trials": 1},
+                     "risk_pct": {v: zv.RISK_PCT[v] for v in zv.VARIANTS}, "n_trials": 1,
+                     "master_primary": master_primary, "day_boundary_sensitivity": alt},
         "costs": {"grid": {"variants": list(zv.VARIANTS), "commissions_rt_per_lot": list(zv.COMMISSIONS),
                            "spread_bases": list(zv.SPREAD_BASES), "cost_mults": list(zv.COST_MULTS)},
                   "s2_disclosure": S2_DISCLOSURE, "slippage": SLIPPAGE_NOTE,
@@ -1030,6 +1215,8 @@ def run_stage(prep: zv.Prepared, rules: PropRules, rules_info: Mapping[str, Any]
         "judging_rows": [r for r in rows if r["cell"] == jcell.label],
         "risk_adjusted": {"cell": jcell.label, "by_day_key": daily_alt, "dsr_caveat": DSR_CAVEAT, "n_trials": 1},
         "prop": prop, "gates": gates,
+        "master": master_section(grid, results, (twin, twin_fp), prop, master_primary),
+        "margin": margin_section(results, cells, (jcell, twin, twin_fp)),
         "decision_log": {"cell": jcell.label, "n_triggers": int(len(trig)),
                          "n_entered": int((trig["status"] == "entered").sum()),
                          "status_counts": _counts(trig["status"]), "block_reasons": dict(zv.BLOCK_REASONS),
@@ -1040,6 +1227,74 @@ def run_stage(prep: zv.Prepared, rules: PropRules, rules_info: Mapping[str, Any]
         "seconds": round(time.perf_counter() - t_start, 1),
     }
     return report_mod.clean(report), tables
+
+
+def day_boundary_summary(prop: Mapping[str, Any], own: str, alt: str, g4: Mapping[str, Any]) -> dict[str, Any]:
+    """Addendum A4-A5 in one place: per firm-day boundary, the judging cell's bootstrap P(daily-loss breach),
+    P(max-loss breach) and P(pass), and which boundary set G4's P(daily-loss breach) (None when G4 is not
+    evaluated)."""
+    out: dict[str, Any] = {"default": own, "sensitivity": alt, "by_boundary": {}}
+    for b, key in ((own, "judging"), (alt, "judging_day_sensitivity")):
+        bs = (prop.get(key) or {}).get("bootstrap") or {}
+        out["by_boundary"][b] = {"label": calendar.boundary_label(b), "utc": calendar.boundary_utc_text(b),
+                                 "p_breach_daily": bs.get("p_breach_daily"),
+                                 "se_breach_daily": bs.get("se_breach_daily"),
+                                 "p_breach_max": bs.get("p_breach_max"), "p_pass": bs.get("p_pass"),
+                                 "n_sims": bs.get("n_sims"), "horizon_days": bs.get("horizon_days")}
+    v = g4.get("value") if isinstance(g4, Mapping) else None
+    out["g4_p_breach_daily_set_by"] = v.get("p_breach_daily_set_by") if isinstance(v, Mapping) else None
+    out["g4_status"] = g4.get("status") if isinstance(g4, Mapping) else None
+    return out
+
+
+def master_section(grid: pd.DataFrame, results: Mapping[str, zv.CellResult], twins: Sequence[zv.ZenoCell],
+                   prop: Mapping[str, Any], primary: str) -> dict[str, Any]:
+    """The two Master runs at the judging settings (addendum A1): role (per --master-primary), combined results
+    (all data), the Master closes, the restricted-window blocks (master_fp), the margin cap (A2) and the
+    bootstrap breach and pass probabilities under the rules."""
+    roles = MASTER_ROLES[primary]
+    out: dict[str, Any] = {"primary": primary, "why": roles["why"], "gated": MASTER_NOT_GATED, "runs": {},
+                           "not_modelled_addendum_a3": a3_not_modelled()}
+    for cell in twins:
+        res = results.get(cell.label)
+        if res is None:
+            continue
+        r = _grid_row(grid, cell.variant, cell.commission_rt_per_lot, cell.spread_base, cell.cost_mult, "combined",
+                      "all") or {}
+        key = "master_twin" if cell.variant == "master" else "master_fp_twin"
+        bs = (prop.get(key) or {}).get("bootstrap") or {}
+        out["runs"][cell.variant] = {
+            "cell": cell.label, "role": roles[cell.variant], "n_triggers": r.get("n_triggers"),
+            "n_positions": r.get("n_positions"), "expectancy_r": r.get("expectancy_r"),
+            "se_expectancy_r": r.get("se_expectancy_r"), "net_usd": r.get("net_usd"), "psr_0": r.get("psr_0"),
+            "master_closes": res.meta.get("master_closes"), "restricted": res.meta.get("restricted"),
+            "margin": res.meta.get("margin"), "p_breach_daily": bs.get("p_breach_daily"),
+            "p_breach_max": bs.get("p_breach_max"), "p_pass": bs.get("p_pass")}
+    return out
+
+
+def margin_section(results: Mapping[str, zv.CellResult], cells: Sequence[zv.ZenoCell],
+                   named: Sequence[zv.ZenoCell]) -> dict[str, Any]:
+    """Addendum A2 counts: per named cell (the judging cell and its two Master twins) its meta["margin"], and per
+    variant the totals over the grid's cells (Master: capped entries, lots before and after, blocked triggers;
+    evaluation: entries over the margin at a flat 1:10 and 1:30)."""
+    per_cell = {c.label: results[c.label].meta.get("margin") for c in named if c.label in results}
+    totals: dict[str, dict[str, Any]] = {}
+    for c in cells:
+        m = results[c.label].meta.get("margin") or {}
+        t = totals.setdefault(c.variant, {"n_cells": 0, "n_entries": 0})
+        t["n_cells"] += 1
+        t["n_entries"] += int(m.get("n_entries") or 0)
+        for k in ("n_capped", "n_blocked", "n_over_flat_1to10", "n_over_flat_1to30"):
+            if k in m:
+                t[k] = t.get(k, 0) + int(m[k])
+        for k in ("lots_before_cap", "lots_after_cap"):
+            if k in m:
+                t[k] = round(t.get(k, 0.0) + float(m[k]), 6)
+    return {"per_cell": per_cell, "grid_totals": totals,
+            "tiers": "0.05 lot at 1:50, the next 0.05 at 1:30, the next 0.05 at 1:25, the next 0.10 at 1:20, the "
+                     "next 0.25 at 1:10, the rest at 1:5; per position, at the entry fill price, 100 oz per lot "
+                     "(addendum A2)"}
 
 
 # ---------------------------------------------------------------------------------------
@@ -1118,7 +1373,10 @@ def _prop_block(title: str, p: Mapping[str, Any] | None, rules: Mapping[str, Any
              f"{report_mod._fmt(ms.get('multiplier'), 3)} x this run's size ({ms.get('note')})"
              + (f"; 5-95% over resampled histories {report_mod._fmt((hu.get('max_size_multiplier') or {}).get('p5'), 2)}"
                 f" .. {report_mod._fmt((hu.get('max_size_multiplier') or {}).get('p95'), 2)}"
-                if hu.get("max_size_multiplier") else "") + " |")
+                if hu.get("max_size_multiplier") else "")
+             + ("; the addendum A2 margin cap is not applied to this scaling, so above about 1.6 lots at "
+                "USD 4,000 gold the multiplier overstates what the Master account can hold"
+                if str(p.get("cell") or "").split("/")[0] in zv.MASTER_VARIANTS else "") + " |")
     if hu.get("p_breach_daily"):
         q = hu["p_breach_daily"]
         L.append(f"| P(daily-loss breach), 5-95% over {hu.get('n_reps')} resampled histories | "
@@ -1126,10 +1384,125 @@ def _prop_block(title: str, p: Mapping[str, Any] | None, rules: Mapping[str, Any
     return L + [""]
 
 
+def _rules_header(rs: Mapping[str, Any], info: Mapping[str, Any]) -> list[str]:
+    """The rules header of report.md: every [U] tag of the rules file and its "unmodelled" list (addendum A3)."""
+    L: list[str] = []
+    u = rs.get("u_tags") or info.get("u_tags") or {}
+    um = rs.get("unmodelled") or info.get("unmodelled") or []
+    if u:
+        L += [f"Rules fields with an unverified [U] part ({len(u)}; that part is an assumption):", ""]
+        L += [f"- {f}: {t}" for f, t in u.items()]
+        L.append("")
+    if um:
+        L += [f"Not modelled by the prop evaluator ({len(um)}, from the rules file):", ""]
+        L += _unmodelled_lines(um, rs.get("unmodelled_master_note"))
+        L.append("")
+    if rs.get("not_modelled_addendum_a3"):
+        L += _a3_lines(rs) + [""]
+    return L
+
+
+def _unmodelled_lines(um: Sequence[Any], note: str | None) -> list[str]:
+    """The rules file's "unmodelled" items as bullets; the item that says its Master rules are handled by the
+    strategy's Master variant carries the report's note on what the code does with each of them."""
+    return [f"- {x}" + (f" {note}" if note and MASTER_CLAIM in str(x) else "") for x in um]
+
+
+def _a3_lines(rs: Mapping[str, Any]) -> list[str]:
+    """Addendum A3's Master rules that no run simulates."""
+    return ["Not simulated in any run (addendum A3):", ""] + [f"- {x}" for x in rs.get("not_modelled_addendum_a3") or []]
+
+
+def _master_lines(m: Mapping[str, Any] | None) -> list[str]:
+    """report.md section on the two Master runs (addendum A1, A2)."""
+    if not isinstance(m, Mapping) or not m.get("runs"):
+        return []
+    L = ["## Master runs (addendum A1)", "",
+         f"Primary Master result: {m['primary']} ({m['why']}). {m['gated']} Both runs: risk 0.40% per trade, rule 9's "
+         "close 10 min before NFP, CPI, PPI and FOMC for positions opened under 5 h before it (D23), the D20 blackout, "
+         "and the margin cap (A2); master_fp also blocks entries in FundingPips' restricted windows and closes "
+         "before every restricted event with a time.", ""]
+    a3 = [str(x).split(": ", 1)[0] for x in m.get("not_modelled_addendum_a3") or []]
+    if a3:
+        L += [f"Neither Master run simulates (addendum A3): {', '.join(a3)}. The rules header lists them.", ""]
+    L += ["| run | role | cell | triggers | positions | E[R] +- SE (R) | net USD | Master closes (restricted list "
+          "only) | triggers blocked by the restricted window (only by it) | margin-capped entries (lots before -> "
+          "after) | P(daily) | P(max) | P(pass) |",
+          "|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+    for v in ("master_fp", "master"):
+        x = (m.get("runs") or {}).get(v)
+        if not x:
+            continue
+        mc = x.get("master_closes") or {}
+        rs = x.get("restricted") or {}
+        mg = x.get("margin") or {}
+        closes = f"{mc.get('n_positions_closed', 'n/a')}" + (
+            f" ({mc.get('n_closed_only_for_restricted_list')})" if "n_closed_only_for_restricted_list" in mc else "")
+        blocks = (f"{rs.get('n_triggers_blocked')} ({rs.get('n_triggers_blocked_only_by_it')})" if rs else "n/a")
+        cap = (f"{mg.get('n_capped', 0)} ({report_mod._fmt(mg.get('lots_before_cap'), 2)} -> "
+               f"{report_mod._fmt(mg.get('lots_after_cap'), 2)}); {mg.get('n_blocked', 0)} blocked")
+        fmt = report_mod._fmt
+        L.append(f"| {v} | {x['role']} | {x['cell']} | {x.get('n_triggers')} | {x.get('n_positions')} | "
+                 f"{_r(x.get('expectancy_r'), x.get('se_expectancy_r'))} | {_usd0(x.get('net_usd'))} | {closes} | "
+                 f"{blocks} | {cap} | {fmt(x.get('p_breach_daily'), 4)} | {fmt(x.get('p_breach_max'), 4)} | "
+                 f"{fmt(x.get('p_pass'), 4)} |")
+    return L + ["", "P(daily), P(max), P(pass): the bootstrap under the rules above (the Prop evaluator section has "
+                "the full blocks).", ""]
+
+
+def _margin_lines(mg: Mapping[str, Any] | None) -> list[str]:
+    """report.md section on the margin cap (addendum A2)."""
+    if not isinstance(mg, Mapping):
+        return []
+    L = ["## Margin (addendum A2)", "", f"Master dynamic leverage: {mg.get('tiers')}. Capped: the D13 lots needed more "
+         "margin than the closed balance at entry and were cut to the largest 0.01-lot size that fits; blocked: not "
+         "even 0.01 lot fits (margin_cap_below_lot_step). The evaluation run is not capped (Standard 1:30 assumed); "
+         "it counts the entries whose margin at a flat 1:10 or 1:30 would exceed the closed balance.", "",
+         "| cell | entries | margin-capped entries | lots before -> after the cap | blocked by margin | over margin "
+         "at flat 1:10 | over margin at flat 1:30 |", "|---|---|---|---|---|---|---|"]
+
+    def line(label: str, m: Mapping[str, Any]) -> str:
+        if m.get("cap_applies", "n_capped" in m):
+            fmt = report_mod._fmt
+            return (f"| {label} | {m.get('n_entries')} | {m.get('n_capped', 0)} | "
+                    f"{fmt(m.get('lots_before_cap'), 2)} -> {fmt(m.get('lots_after_cap'), 2)} | "
+                    f"{m.get('n_blocked', 0)} | not counted (capped) | not counted (capped) |")
+        return (f"| {label} | {m.get('n_entries')} | not capped | n/a | n/a | {m.get('n_over_flat_1to10', 0)} | "
+                f"{m.get('n_over_flat_1to30', 0)} |")
+    for label, m in (mg.get("per_cell") or {}).items():
+        L.append(line(label, m or {}))
+    for v, t in (mg.get("grid_totals") or {}).items():
+        L.append(line(f"all {t.get('n_cells')} {v} cells", {**t, "cap_applies": v in zv.MASTER_VARIANTS}))
+    return L + [""]
+
+
+def _day_boundary_lines(db: Mapping[str, Any] | None) -> list[str]:
+    """report.md section on the two firm-day boundaries (addendum A4, A5)."""
+    if not isinstance(db, Mapping) or not db.get("by_boundary"):
+        return []
+    L = ["## Firm day boundary (addendum A4, A5)", "",
+         "The judging cell's prop evaluator runs under the rules' own firm day and again with the other one "
+         "(00:00 UTC+3 = 21:00 UTC all year, FundingPips' literal \"00:00 Platform Time (UTC+3)\"; or 17:00 New York "
+         "when the rules already use UTC+3). G4 uses the higher P(daily-loss breach) of the two.", "",
+         "| firm day | role | starts (UTC) | P(daily-loss breach) | P(max-loss breach) | P(pass) |",
+         "|---|---|---|---|---|---|"]
+    for b, x in db["by_boundary"].items():
+        role = "default (the rules')" if b == db.get("default") else "sensitivity"
+        pd_ = (report_mod._pse(x["p_breach_daily"], x["se_breach_daily"], x.get("n_sims"))
+               if x.get("p_breach_daily") is not None else "n/a")
+        L.append(f"| {b} ({x.get('label')}) | {role} | {x.get('utc')} | {pd_} | "
+                 f"{report_mod._fmt(x.get('p_breach_max'), 4)} | {report_mod._fmt(x.get('p_pass'), 4)} |")
+    sb = db.get("g4_p_breach_daily_set_by")
+    L += ["", (f"G4's P(daily-loss breach) is set by {sb}." if sb else
+               f"G4 is {db.get('g4_status') or 'not evaluated'}, so no boundary set it; both values are shown."), ""]
+    return L
+
+
 def render_run_markdown(report: Mapping[str, Any]) -> str:
-    """The stage-2 report (run_stage) as Markdown text (ASCII): verdict and gates first, then the judging
-    cell's results, the risk-adjusted block (with the DSR caveat), the prop evaluator, the grid, the decision
-    log, M1, data, rules ([U] fields), the spec readings and the notes. Every number carries its unit."""
+    """The stage-2 report (run_stage) as Markdown text (ASCII): verdict and gates first, then the firm-day
+    boundaries (A4-A5), the judging cell's results, the risk-adjusted block (with the DSR caveat), the prop
+    evaluator, the Master runs (A1), the margin cap (A2), the grid, the decision log, M1, data, rules ([U]
+    fields, unmodelled rules), the spec readings and the notes. Every number carries its unit."""
     r = report
     g = r["gates"]
     gg = g["gates"]
@@ -1141,14 +1514,20 @@ def render_run_markdown(report: Mapping[str, Any]) -> str:
     L = [HEADER, "", "# zeno_pullback_v1 - stage 2 report (pre-registered grid)", "",
          f"Generated {r['generated_utc']} by propkit {r['propkit_version']} in {r.get('seconds')} s. Spec "
          f"{r['spec']['spec_id']} v{r['spec']['spec_version']} (packaged copies match the recorded sha256: "
-         f"{'yes' if r['spec']['all_match'] else 'NO'}). Data: {d.get('n_bars')} M15 bid/ask bars, "
+         f"{'yes' if r['spec']['all_match'] else 'NO'})"
+         + (f" with addendum A ({r['addendum_a']['file']}, sha256 {r['addendum_a']['sha256_packaged']}, matches the "
+            f"recorded value: {'yes' if r['addendum_a']['matches'] else 'NO'})" if r.get("addendum_a") else "")
+         + f". Data: {d.get('n_bars')} M15 bid/ask bars, "
          f"{d.get('first_time_utc')} .. {d.get('last_time_utc')}, {d.get('n_trading_days')} server days. The numbers "
          "describe this data only; the backtest is in-sample by construction (spec, After a pass).", ""]
+    L += [f"Rules: {rules.get('name')} ({info.get('status') or 'status not recorded'}"
+          + (f"; file sha256 {info.get('sha256')}" if info.get("sha256") else "") + ").", ""]
     if rs.get("unverified"):
-        L += [f"**WARNING: {info.get('warning') or rs.get('warning')}** Rules: {rules.get('name')}. Unverified [U] "
-              f"fields: {', '.join(info.get('unverified_fields') or []) or 'see Rules'}.", ""]
+        L += [f"**WARNING: {info.get('warning') or rs.get('warning')}** Unverified [U] fields: "
+              f"{', '.join(info.get('unverified_fields') or []) or 'see Rules'}.", ""]
         if info.get("fallback"):
             L += [f"NOTE: {info['fallback']}.", ""]
+    L += _rules_header(rs, info)
     L += ["## Verdict and gates", "", f"**Verdict: {g['verdict']}**", "",
           "| gate | judged at | value | threshold | status |", "|---|---|---|---|---|"]
     g0 = gg["G0"]
@@ -1172,8 +1551,11 @@ def render_run_markdown(report: Mapping[str, Any]) -> str:
                  "not_evaluated |")
     else:
         vv = v4["value"]
-        L.append(f"| G4 prop survival | {v4['judged_at']} | P(daily) {report_mod._fmt(vv['p_breach_daily'], 4)}, "
-                 f"P(max) {report_mod._fmt(vv['p_breach_max'], 4)} ({vv.get('n_sims')} sims, no horizon) | "
+        both = vv.get("p_breach_daily_by_boundary") or {}
+        L.append(f"| G4 prop survival | {v4['judged_at']} | P(daily) {report_mod._fmt(vv['p_breach_daily'], 4)}"
+                 + (" (" + ", ".join(f"{b} {report_mod._fmt(x, 4)}" for b, x in both.items())
+                    + f"; set by {vv.get('p_breach_daily_set_by')})" if both else "")
+                 + f", P(max) {report_mod._fmt(vv['p_breach_max'], 4)} ({vv.get('n_sims')} sims, no horizon) | "
                  f"{v4['threshold']} | {v4['status']} |")
     v5 = gg["G5"]
     L.append(f"| G5 each side | {v5['judged_at']} | "
@@ -1183,6 +1565,7 @@ def render_run_markdown(report: Mapping[str, Any]) -> str:
     L.append(f"| Kill (G2 at x1) | {k['judged_at']} | E[R] {_r(k['value']['expectancy_r'])} R, PSR "
              f"{report_mod._fmt(k['value']['psr_0'], 3)} | {k['test']} | {'FIRED' if k['fired'] else 'not fired'} |")
     L += ["", f"Kill rule (spec): {KILL_TEXT} {'It FIRED.' if k['fired'] else 'It did not fire.'}", ""]
+    L += _day_boundary_lines(g.get("day_boundaries"))
     wb, wb1 = j["worse_base"], r["x1_cell"]["worse_base"]
     L += ["## Judging cell", "",
           f"{j['label']}: variant evaluation (risk 0.50% per trade), commission 10 USD per lot round trip, costs "
@@ -1207,8 +1590,10 @@ def render_run_markdown(report: Mapping[str, Any]) -> str:
     L += ["## Risk-adjusted (judging cell, combined)", "", "| day used for daily returns | days | SR per day +- SE | "
           "annualised SR +- SE | PSR(SR>0) | DSR (N = 1) |", "|---|---|---|---|---|---|"]
     for key, label in ((DAY_KEY, "server day, 17:00 New York (judged) [SI-30]"), ("cet_midnight", "CE(S)T day"),
-                       ("utc_midnight", "UTC day")):
-        m = ra["by_day_key"][key]
+                       ("utc_midnight", "UTC day"), (SENSITIVITY_DAY_BOUNDARY, "UTC+3 day, 21:00 UTC (addendum A4)")):
+        m = ra["by_day_key"].get(key)
+        if m is None:
+            continue
         L.append(f"| {label} | {m['n_days']} | {_r(m['sharpe_daily'], m['se_sharpe_daily'], 4)} | "
                  f"{_r(m['sharpe_annual'], m['se_sharpe_annual'], 2)} at {report_mod._fmt(m['days_per_year'], 1)} "
                  f"days/yr | {report_mod._fmt(m['psr_0'], 3)} | {report_mod._fmt(m['dsr_n1'], 3)} |")
@@ -1217,12 +1602,20 @@ def render_run_markdown(report: Mapping[str, Any]) -> str:
     L += ["## Prop evaluator", "", f"Horizon: {pr['horizon_reading']}. +- is the Monte Carlo error (simulation noise "
           "only); at 0 or 1 the bound is the 95% rule of three.", ""]
     L += _prop_block("Judging cell", pr.get("judging"), rules)
-    L += _prop_block("Master twin (risk 0.40%, Master news rule)", pr.get("master_twin"), rules)
+    L += _prop_block("Judging cell, the other firm day (addendum A4)", pr.get("judging_day_sensitivity"), rules)
+    roles = MASTER_ROLES.get((r.get("master") or {}).get("primary") or DEFAULT_MASTER_PRIMARY, {})
+    L += _prop_block(f"Master twin (risk 0.40%, rule 9's Master news rule; {roles.get('master', 'master')})",
+                     pr.get("master_twin"), rules)
+    L += _prop_block(f"master_fp twin (risk 0.40%, FundingPips' restricted list, addendum A1; "
+                     f"{roles.get('master_fp', 'master_fp')})", pr.get("master_fp_twin"), rules)
     if pr.get("reference"):
         rr = pr["reference"]["rules_section"]
         L += [f"Reference rules: {rr['rules'].get('name')} - another firm's rules, shown for comparison only.", ""]
         L += _prop_block("Judging cell, reference rules", pr["reference"], rr["rules"])
-    L += ["## The 24 cells (combined, all data)", "", f"Costs: {SLIPPAGE_NOTE}. S2 disclosure (spec): {S2_DISCLOSURE}",
+    L += _master_lines(r.get("master"))
+    L += _margin_lines(r.get("margin"))
+    L += [f"## The {len(r['grid_summary'])} cells (combined, all data)", "",
+          f"Costs: {SLIPPAGE_NOTE}. S2 disclosure (spec): {S2_DISCLOSURE}",
           "", "The cost multiplier also scales the spread that rule 10 compares with 10% of R, so x1.5 and x2 cells "
           "trade fewer triggers than x1 [SI-65]: 'spread blocks' counts the triggers the spread filter blocks, "
           "'vs x1' the positions against the same cell at x1.", "",
@@ -1269,7 +1662,8 @@ def render_run_markdown(report: Mapping[str, Any]) -> str:
           "the bid (counted, not refused): "
           + ", ".join(f"{k} {v}" for k, v in (d.get("ask_below_bid") or {}).items()),
           f"- news: {_news_line(r['news'])}",
-          f"- {_unscheduled_line(nu.get('judging'), nu.get('master_twin'))}",
+          f"- restricted events (addendum A1, master_fp): {_restricted_line(r.get('restricted'))}",
+          f"- {_unscheduled_line(nu.get('judging'), nu.get('master_twin'), nu.get('master_fp_twin'))}",
           f"- D1 range: from {d.get('range_start_utc', zv.RANGE_START_TEXT)} to the lock [SI-62]"
           + (f"; {d['range_note']}" if d.get("range_note") else "; the data starts inside it"),
           f"- holdout lock: no bar at or after {zv.LOCK_TEXT} was accepted (D1)", "",
@@ -1283,6 +1677,11 @@ def render_run_markdown(report: Mapping[str, Any]) -> str:
         for f, t in tags.items():
             v = rules.get(f)
             L.append(f"| {f} | {'null (off)' if v is None else v} | {t} |")
+    if rs.get("unmodelled"):
+        L += ["", "Not modelled (the rules file's _meta.unmodelled):", ""]
+        L += _unmodelled_lines(rs["unmodelled"], rs.get("unmodelled_master_note"))
+    if rs.get("not_modelled_addendum_a3"):
+        L += [""] + _a3_lines(rs)
     L += ["", "## Spec readings used here", ""]
     L += [f"- [{x['id']}] {x['text']}" for x in r["spec_readings"]]
     L += ["", "## Notes", "", f"- After a pass (spec): {AFTER_A_PASS}", f"- Change policy (spec): {CHANGE_POLICY}",

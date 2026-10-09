@@ -30,8 +30,9 @@ Conventions (each is a choice; they are the same in propkit.bootstrap)
     days are 23 h and 25 h long). In the US-only DST shift weeks the Sunday 18:00 New York reopen is
     22:00 UTC = 23:00 CET Sunday, so that first hour is its own (Sunday) prop day. Bars must not cross
     00:00 CE(S)T (true for M15/M30/H1 bars that open on the hour); a frame where they do is refused.
-    With rules.day_boundary "ny_17" or "utc_midnight" the day is propkit.calendar.firm_day instead (17:00
-    New York or 00:00 UTC) and everything below that says 00:00 means that boundary; the default
+    With rules.day_boundary "ny_17", "utc_midnight" or "utc_plus3" the day is propkit.calendar.firm_day
+    instead (17:00 New York, 00:00 UTC or 00:00 UTC+3 = 21:00 UTC) and everything below that says 00:00
+    means that boundary; the default
     "cet_midnight" is exactly the CE(S)T prop day above.
   * Day-start values: B_00:00 = balance at the end of the last bar before the day (C0 for the first
     day); E_00:00 likewise from equity_close. Floors follow rules.daily_floor / rules.max_floor; the

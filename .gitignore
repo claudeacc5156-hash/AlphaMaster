@@ -91,6 +91,8 @@ logs/
 
 # ── 本地数据缓存（体积大，机器相关）──────────────────────────────
 data/
+# propkit's packaged news calendars (sha256 recorded; the default of zeno-v1 --restricted) are code, not a cache
+!propkit/data/
 !data_pipeline/
 data/cache/
 **/kline_cache/

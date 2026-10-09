@@ -79,10 +79,12 @@ error is 0; read it as p < 3 / n_sims (or > 1 - 3 / n_sims) at 95% (rule of thre
 Quantiles of days to target use numpy's default linear interpolation.
 
 Day boundary: the units are cut at the firm's day boundary (PropRules.day_boundary; propkit.calendar.firm_day:
-"cet_midnight" = 00:00 CE(S)T by default, "ny_17" = 17:00 New York, "utc_midnight"). bootstrap_challenges,
-max_size and history_uncertainty build their units with the rules' boundary; prebuilt units must have been
-built with the same one (DayUnits.day_boundary), else ValueError. Week blocks keep the Sunday..Saturday
-rule for every boundary (under "ny_17" the Sunday reopen already belongs to Monday's day).
+"cet_midnight" = 00:00 CE(S)T by default, "ny_17" = 17:00 New York, "utc_midnight", "utc_plus3" = 21:00
+UTC). bootstrap_challenges, max_size and history_uncertainty build their units with the rules' boundary;
+prebuilt units must have been built with the same one (DayUnits.day_boundary), else ValueError. Week
+blocks (week_id) keep the Sunday..Saturday rule for every boundary (under "ny_17" and "utc_plus3" the Sunday
+reopen already belongs to Monday's day; under "utc_plus3" a US-winter Friday 21:00-22:00 UTC hour is a
+Saturday day and stays in Friday's week).
 """
 from __future__ import annotations
 

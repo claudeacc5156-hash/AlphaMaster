@@ -433,7 +433,8 @@ def test_run_writes_every_file_and_gates_json(files, tmp_path, capsys):
     out = tmp_path / "run"
     code, stdout, err = run(["zeno-v1", "run", "--g0-confirmed"] + inputs(files) + ["--out", out] + FAST, capsys)
     assert code == 0, err
-    assert "WARNING" in stdout and "UNVERIFIED" in stdout and "Verdict:" in stdout
+    # updated for addendum A3: the default rules are the verified preset, whose warning names its [U] fields
+    assert "WARNING" in stdout and "[U]" in stdout and "Verdict:" in stdout
     assert sorted(p.name for p in out.iterdir()) == sorted(zr.RUN_FILES)
     g = json.loads((out / "gates.json").read_text(encoding="ascii"))
     assert set(g["gates"]) == {"G0", "G1", "G2", "G3", "G4", "G5"}
@@ -447,7 +448,7 @@ def test_run_writes_every_file_and_gates_json(files, tmp_path, capsys):
     assert rep["gates"] == g
     grid = pd.read_csv(out / "grid.csv")
     n_periods = len(rep["periods"])
-    assert len(grid) == 24 * 3 * n_periods and grid["cell"].nunique() == 24
+    assert len(grid) == 36 * 3 * n_periods and grid["cell"].nunique() == 36  # updated for addendum A1: 36 cells
     assert set(grid["side"]) == {"long", "short", "combined"}
     assert (grid.loc[grid["cost_mult"] == 1.0, "positions_vs_x1"] == 0).all()          # ARITH-2 [SI-65]
     assert (grid["n_spread_blocked"] <= grid["n_triggers"]).all() and (grid["n_positions"] <= grid["n_triggers"]).all()
@@ -461,7 +462,8 @@ def test_run_writes_every_file_and_gates_json(files, tmp_path, capsys):
     dec = pd.read_csv(out / "decisions.csv")
     assert list(dec.columns) == list(z.DECISION_COLUMNS)
     md = (out / "report.md").read_text(encoding="ascii")
-    assert md.startswith(HEADER) and "UNVERIFIED" in md and "DSR with N = 1 understates the bar" in md
+    # updated for addendum A3: the verified preset's [U] tags replace the placeholder's UNVERIFIED banner
+    assert md.startswith(HEADER) and "Rules fields with an unverified [U] part" in md and "DSR with N = 1 understates the bar" in md
     assert "M1 resolution not run" in md and zr.S2_DISCLOSURE in md and "## Verdict and gates" in md
     nu = rep["news_unscheduled"]                         # CAUS-2 [SI-63]: the 2020-03-15 row is unscheduled
     assert nu["judging"]["n_rows"] == 1 and nu["master_twin"]["master_closes_only_for_unscheduled"] == []
@@ -479,7 +481,9 @@ def test_run_writes_every_file_and_gates_json(files, tmp_path, capsys):
 
 def test_g4_not_evaluated_with_the_placeholder_rules(files, tmp_path, capsys):
     out = tmp_path / "run"
-    code, _, err = run(["zeno-v1", "run", "--g0-confirmed"] + inputs(files) + ["--out", out] + FAST, capsys)
+    # updated for addendum A3: the default is now the verified preset, so the placeholder is named explicitly
+    code, _, err = run(["zeno-v1", "run", "--g0-confirmed"] + inputs(files) + ["--out", out,
+                        "--rules", "fundingpips-1step-flex-placeholder"] + FAST, capsys)
     assert code == 0, err
     g = json.loads((out / "gates.json").read_text(encoding="ascii"))
     g4 = g["gates"]["G4"]
@@ -488,7 +492,7 @@ def test_g4_not_evaluated_with_the_placeholder_rules(files, tmp_path, capsys):
     rep = json.loads((out / "report.json").read_text(encoding="ascii"))
     assert rep["prop"]["g4_applicable"] is False and rep["prop"]["judging"]["horizon_days"] == 60
     assert rep["rules_section"]["unverified"] is True
-    assert rep["rules_section"]["info"]["fallback"]                          # fundingpips-1step-flex -> placeholder
+    assert not rep["rules_section"]["info"].get("fallback")  # updated for addendum A3: named, not a fallback
     assert "master_twin" in rep["prop"] and "reference" not in rep["prop"]
 
 

@@ -36,14 +36,29 @@ Conventions
 Per-bar order inside simulate (one position at most, D21):
   at the OPEN of bar j (positions entered before j): gap through the stop (fill at the open minus/plus
   the stop slippage), gap through a target (fill at the target level, never better), the 16:30 New York
-  time exit (fill at the open), the Master news close (variant "master"); then the entry accepted at the
-  previous close fills at this open (and the Master close takes it at that same open when, after a data gap,
-  this bar holds T - 10 min [SI-70]). INSIDE bar j: stop first when one bar touches the stop and a target
-  (D15); after the +2R partial the breakeven stop is checked in the same bar (D15) and wins over +4R.
+  time exit (fill at the open), the Master news close (variants "master" and "master_fp"); then the entry
+  accepted at the previous close fills at this open (and the Master close takes it at that same open when,
+  after a data gap, this bar holds T - 10 min [SI-70]). INSIDE bar j: stop first when one bar touches the
+  stop and a target (D15); after the +2R partial the breakeven stop is checked in the same bar (D15) and
+  wins over +4R.
   At the CLOSE of bar j: the setup machines move and may trigger; every trigger is decided at once
   (entered for the next open, or blocked with every failing reason; one shot either way, D10).
 An intrabar exit is written to TRADES at time + 899 (so propkit.equity books it in its own bar) and
 stamped at the bar's close (time + 900) for the cooldown (D22).
+
+Addendum A (propkit/specs/zeno_pullback_v1_addendum_A.md, pre-registered 2026-10-08; it changes only how the
+prop firm is simulated, never the 12 rules, D1-D24 or the gates):
+  * A1, variant "master_fp": everything as "master" plus FundingPips' restricted list (read_restricted_csv):
+    no entry when the trigger close OR the entry fill lies in [T - 5 min, T_end + 5 min] (T_end = T for a
+    release, T + 180 min for a Fed Chair testimony, T + 60 min for any other Fed Chair appearance) or on the
+    New York date of an event with no known time (reason "fp_restricted_window", right after D20's); the D23
+    close (10 min before T, positions opened under 5 h before it, [SI-40], [SI-70]) for every restricted event
+    with a known time, on top of rule 9's four events.
+  * A2, both Master variants: the tiered metals margin (margin_usd) at the entry fill price; D13 lots whose
+    margin exceeds the closed balance are cut to the largest 0.01-lot size that fits (max_units_within_margin),
+    and an entry that cannot hold 0.01 lot is blocked ("margin_cap_below_lot_step", before the size reason).
+    The evaluation variant is not capped; meta["margin"] counts its entries over the margin at a flat 1:10 and
+    a flat 1:30.
 
 Test-only parameter: prepare(..., test_indicators={"atr14": per-M15-bar array, "ema30_h1": per-H1-bar
 array}) replaces the computed indicators so hand-computed cases are possible. Never use it for a real
@@ -77,6 +92,11 @@ SPEC_VERSION = "1.0"
 SPEC_SHA256_MD = "d36ad25f74c293166bd82f117cb96a6e6890a2ab2c3dd63dbc41bff52b67bbcb"
 SPEC_SHA256_JSON = "ebd8017a271229786c5a79f08baddd0e6b4940be52f8e28d40706dddb1f7b31a"
 SPECS_DIR = Path(__file__).resolve().parent / "specs"
+ADDENDUM_A_FILE = "zeno_pullback_v1_addendum_A.md"   # addendum A (FundingPips firm rules), a byte-exact copy
+ADDENDUM_A_SHA256 = "0f64bf584e325cc665e1afee0f9dccb9e53f83645f078abad2d455f5982af7b0"
+RESTRICTED_CSV = (Path(__file__).resolve().parent / "data" / "news_calendar"
+                  / "us_restricted_events_fundingpips_2015-01-01_2025-09-27.csv")    # addendum A1, packaged
+RESTRICTED_SHA256 = "6685ee94fa4d0b2c860e1d3fd3a780dc49ad65e3885a2de9f70fc4c218e53cba"
 
 M15_SECONDS = 900
 M1_SECONDS = 60
@@ -105,7 +125,7 @@ LEVEL_TOL = 1e-9                         # [SI-34] tie rule, USD/oz: a price wit
 STOP_BUFFER_ATR = 0.25                   # rule 5
 TP1_R = 2.0                              # rule 6
 TP2_R = 4.0
-RISK_PCT = {"evaluation": 0.005, "master": 0.004}     # rule 7, D23
+RISK_PCT = {"evaluation": 0.005, "master": 0.004, "master_fp": 0.004}     # rule 7, D23, addendum A1
 VOL_CAP_X = 2.0                          # rule 8, D18
 VOL_MEDIAN_DAYS = 20
 MAX_STOP_ATR = 3.0
@@ -117,6 +137,15 @@ NEWS_BEFORE_S = 1800                     # D20: [T - 30 min, T + 60 min], both e
 NEWS_AFTER_S = 3600
 MASTER_CLOSE_BEFORE_S = 600              # D23
 MASTER_MAX_AGE_S = 5 * 3600
+FP_BEFORE_S = 300                        # addendum A1: no entry from T - 5 min ...
+FP_AFTER_S = 300                         # ... to T_end + 5 min, both ends blocked
+FEDCHAIR_EVENT = "FEDCHAIR"
+FEDCHAIR_TESTIMONY_S = 180 * 60          # A1 [ASSUMPTION]: a testimony lasts 180 min ("testimony" in the note)
+FEDCHAIR_OTHER_S = 60 * 60               # every other Fed Chair appearance 60 min
+# A2: FundingPips Master dynamic metals leverage, per position: (oz inside the tier, leverage); 100 oz = 1 lot
+MARGIN_TIERS = ((5.0, 50.0), (5.0, 30.0), (5.0, 25.0), (10.0, 20.0), (25.0, 10.0), (math.inf, 5.0))
+MARGIN_TOL_USD = 1e-6                    # a margin "fits" when it is <= the closed balance + 1e-6 USD
+EVAL_FLAT_LEVERAGES = (10.0, 30.0)       # A2: the evaluation run is not capped; counted at 1:10 and 1:30
 MAX_ENTRIES_PER_DAY = 2                  # rule 11, D21
 MAX_LOSSES_PER_DAY = 2
 DAY_LOSS_FRAC = 0.01
@@ -127,7 +156,8 @@ S2_USD = 0.18                            # Costs: spread base S2
 S2_ROLLOVER_USD = 0.20
 S2_ROLLOVER_UTC = (21 * 3600, 24 * 3600)  # 05:00-08:00 SGT
 STOP_SLIPPAGE_USD = 0.05                 # Costs [ASSUMPTION], on stop fills only [SI-21]
-VARIANTS = ("evaluation", "master")
+VARIANTS = ("evaluation", "master", "master_fp")     # D23 and addendum A1
+MASTER_VARIANTS = ("master", "master_fp")             # the D23 close and the A2 margin cap apply
 COMMISSIONS = (5.0, 10.0)
 SPREAD_BASES = ("S1", "S2")
 COST_MULTS = (1.0, 1.5, 2.0)
@@ -148,6 +178,9 @@ BLOCK_REASONS: dict[str, str] = {
     "outside_session": "the entry time (the trigger bar's close) is outside 15:00-18:00 and 20:30-24:00 SGT "
                        "(rule 9, D19)",
     "news_blackout": "the entry time is from 30 min before to 60 min after NFP, CPI, PPI or FOMC (rule 9, D20)",
+    "fp_restricted_window": "variant master_fp: the trigger close or the entry fill is from 5 min before a "
+                            "FundingPips restricted event to 5 min after its end, or on the New York date of one "
+                            "whose time is unknown (addendum A1)",
     "spread_gt_10pct_of_stop": "the entry bar's spread is above 10% of the stop distance R (rule 10, D11)",
     "atr_above_2x_median": "ATR14 at the trigger close is above 2 x its median over the previous 20 trading "
                            "days, or that median is undefined (rule 8, D18)",
@@ -162,6 +195,8 @@ BLOCK_REASONS: dict[str, str] = {
     "entry_after_time_exit": "the next bar opens at or after 16:30 New York of the trigger close's server day "
                              "(only after a data gap; D17, D21)",
     "entry_beyond_stop": "the entry fill is at or beyond the stop, so R <= 0: no valid trade",
+    "margin_cap_below_lot_step": "Master variants: the closed balance does not cover the margin of 0.01 lot at "
+                                 "the entry price (FundingPips' tiered metals leverage, addendum A2)",
     "size_below_lot_step": "the risk budget buys less than 0.01 lot (rule 7, D13)",
 }
 # The checks that need how and when earlier trades ended (their P&L, exit times, the entries they let
@@ -182,7 +217,7 @@ POSITION_COLUMNS = (
     "tp2_reached", "exit1_time", "exit1_time_utc", "exit1_price", "exit1_reason", "exit2_time", "exit2_time_utc",
     "exit2_price", "exit2_reason", "final_exit_stamp", "gross_usd", "commission_usd", "slippage_usd", "swap_usd",
     "net_pnl_usd", "r_multiple_net", "outcome", "ambiguous_bar", "m1_bars_resolved", "m1_bars_unresolved",
-    "time_exit_rule")
+    "time_exit_rule", "lots_uncapped", "margin_capped")      # the last two: addendum A2 (lots = the lots held)
 TIME_EXIT_RULES = ("16:30_open", "early_close_us_holiday", "early_close_other_day")   # [SI-64]
 DECISION_COLUMNS = (
     "time", "time_utc", "time_sgt", "event", "side", "setup_id", "bar_index", "bar_time", "status", "reasons",
@@ -190,6 +225,8 @@ DECISION_COLUMNS = (
     "arm_bar_time", "pullback_bar_time", "pullback_level", "trigger_level", "bars_since_pullback",
     "entry_time", "entry_price", "stop_level", "spread_entry", "atr_trigger", "atr_median", "trend_ok",
     "news_pre_unscheduled")
+# variant master_fp only: its restricted-window block comes only from the 5 min before unscheduled rows [SI-63]
+DECISION_COLUMNS_FP = DECISION_COLUMNS + ("fp_pre_unscheduled",)
 
 
 # ---------------------------------------------------------------------------------------
@@ -759,6 +796,167 @@ def read_news_csv(path) -> NewsCalendar:
 
 
 # ---------------------------------------------------------------------------------------
+# FundingPips' restricted events (addendum A1, variant "master_fp")
+
+def _in_spans(lo: np.ndarray, hi: np.ndarray, arr: np.ndarray) -> np.ndarray:
+    """True where arr lies in [lo_i, hi_i] of some span i (both ends included; spans of any length that may
+    overlap): sort by lo, take the running maximum of hi, and compare it with arr."""
+    if lo.size == 0:
+        return np.zeros(arr.shape, dtype=bool)
+    order = np.argsort(lo, kind="stable")
+    lo_s, hi_max = lo[order], np.maximum.accumulate(hi[order])
+    k = np.searchsorted(lo_s, arr, side="right")                     # spans with lo <= t
+    return (k > 0) & (hi_max[np.maximum(k - 1, 0)] >= arr)
+
+
+def fp_duration_s(name: str, testimony: bool) -> int:
+    """How long a restricted event lasts after T, seconds (addendum A1): 180 min for a Fed Chair testimony,
+    60 min for every other Fed Chair appearance, 0 for a release."""
+    if str(name).strip().upper() != FEDCHAIR_EVENT:
+        return 0
+    return FEDCHAIR_TESTIMONY_S if testimony else FEDCHAIR_OTHER_S
+
+
+@dataclass(frozen=True, eq=False)
+class RestrictedCalendar:
+    """FundingPips' Master restricted USD events (addendum A1) for the variant "master_fp".
+
+    start: int64 T (UTC epoch s) of each event with a known time, sorted; end: T_end per event (T for a
+    release, T + 180 min for a Fed Chair testimony, T + 60 min for any other Fed Chair appearance, fp_duration_s);
+    names, kinds ("scheduled" / "unscheduled") and testimony (bool) per event; unknown_days: the New York
+    calendar dates (int64 days since 1970-01-01, sorted, unique) of the events whose time is unknown, and
+    unknown_rows their (event, 'YYYY-MM-DD') pairs; source and sha256 of the file read."""
+
+    start: np.ndarray
+    end: np.ndarray
+    names: tuple = ()
+    kinds: tuple = ()
+    testimony: tuple = ()
+    unknown_days: np.ndarray = field(default_factory=lambda: np.zeros(0, dtype=np.int64))
+    unknown_rows: tuple = ()
+    source: str = "in-memory"
+    sha256: str | None = None
+
+    def unscheduled(self) -> np.ndarray:
+        """True per known-time event whose kind is "unscheduled"."""
+        if len(self.kinds) != self.start.size:
+            return np.zeros(self.start.size, dtype=bool)
+        return np.array([str(k).strip().lower() == "unscheduled" for k in self.kinds], dtype=bool)
+
+    def in_window(self, t):
+        """True where t (UTC epoch s) lies in [T - 5 min, T_end + 5 min] of some event (both ends blocked)."""
+        arr = np.asarray(t, dtype=np.int64)
+        out = _in_spans(self.start - FP_BEFORE_S, self.end + FP_AFTER_S, arr)
+        return bool(out) if arr.ndim == 0 else out
+
+    def on_unknown_day(self, t):
+        """True where the New York calendar date of t is the date of an event whose time is unknown."""
+        arr = np.asarray(t, dtype=np.int64)
+        out = np.isin(np.asarray(calendar.ny_day(arr), dtype=np.int64), self.unknown_days)
+        return bool(out) if arr.ndim == 0 else out
+
+    def blocked(self, t):
+        """The A1 entry block for one instant: in_window(t) or on_unknown_day(t). Scalar or array."""
+        arr = np.asarray(t, dtype=np.int64)
+        out = np.asarray(self.in_window(arr)) | np.asarray(self.on_unknown_day(arr))
+        return bool(out) if arr.ndim == 0 else out
+
+    def blocked_before_unscheduled_only(self, t):
+        """True where t is blocked ONLY by the [T - 5 min, T) part of unscheduled rows: nobody could know at t
+        that the event was coming. blocked() still blocks it, as A1 says; this only marks it [SI-63]."""
+        arr = np.asarray(t, dtype=np.int64)
+        u = self.unscheduled()
+        lo, hi = self.start - FP_BEFORE_S, self.end + FP_AFTER_S
+        known = (_in_spans(lo[~u], hi[~u], arr) | _in_spans(self.start[u], hi[u], arr)
+                 | np.asarray(self.on_unknown_day(arr)))
+        out = np.asarray(self.blocked(arr)) & ~known
+        return bool(out) if arr.ndim == 0 else out
+
+    def summary(self) -> dict[str, Any]:
+        """Counts per event name, the Fed Chair testimony / other split, the unknown-time rows, the first and
+        last event (UTC text), the source file and its sha256."""
+        names, counts = np.unique(np.asarray(self.names, dtype=object).astype(str), return_counts=True) \
+            if len(self.names) else (np.array([]), np.array([]))
+        fed = np.array([str(x).upper() == FEDCHAIR_EVENT for x in self.names], dtype=bool)
+        tes = np.asarray(self.testimony, dtype=bool) if len(self.testimony) == self.start.size \
+            else np.zeros(self.start.size, dtype=bool)
+        return {"source": self.source, "sha256": self.sha256, "n_events_known_time": int(self.start.size),
+                "n_unknown_time": len(self.unknown_rows),
+                "unknown_time_rows": [{"event": a, "date_et": b} for a, b in self.unknown_rows],
+                "n_unscheduled": int(self.unscheduled().sum()),
+                "fedchair_testimony": int((fed & tes).sum()), "fedchair_other": int((fed & ~tes).sum()),
+                "per_event": {str(a): int(b) for a, b in zip(names, counts)},
+                "first_utc": calendar.utc_str(int(self.start[0])) if self.start.size else None,
+                "last_utc": calendar.utc_str(int(self.start[-1])) if self.start.size else None,
+                "window": f"[T - {FP_BEFORE_S // 60} min, T_end + {FP_AFTER_S // 60} min]; T_end = T (release), "
+                          f"T + {FEDCHAIR_TESTIMONY_S // 60} min (Fed Chair testimony), T + {FEDCHAIR_OTHER_S // 60} "
+                          "min (other Fed Chair appearance)"}
+
+
+def restricted_calendar(times, names: Sequence[str] | None = None, kinds: Sequence[str] | None = None,
+                        testimony: Sequence[bool] | None = None, unknown: Sequence[tuple[str, str]] = (),
+                        source: str = "in-memory") -> RestrictedCalendar:
+    """A RestrictedCalendar from known-time instants (UTC epoch s, or anything propkit.bars.to_epoch_seconds
+    reads) with their event names (default "event", a release), kinds (default "scheduled") and testimony
+    flags (default False), plus unknown = (event, New York date 'YYYY-MM-DD') pairs for the events whose
+    time is unknown. T_end follows fp_duration_s. Sorted by time."""
+    raw = pd.Series(list(np.atleast_1d(times))) if not isinstance(times, pd.Series) else times.reset_index(drop=True)
+    t = bars_mod.to_epoch_seconds(raw, "restricted event time") if len(raw) else np.zeros(0, dtype=np.int64)
+    n = t.size
+    nm = [str(x).strip().upper() for x in names] if names is not None else ["event"] * n
+    kd = [str(x).strip() for x in kinds] if kinds is not None else ["scheduled"] * n
+    ts_ = [bool(x) for x in testimony] if testimony is not None else [False] * n
+    if len(nm) != n or len(kd) != n or len(ts_) != n:
+        raise ValueError("names, kinds and testimony must have one entry per time")
+    dur = np.array([fp_duration_s(a, b) for a, b in zip(nm, ts_)], dtype=np.int64)
+    order = np.argsort(t, kind="stable")
+    unk_rows, unk_days = [], []
+    for ev, d in unknown:
+        try:
+            day = (_dt.date.fromisoformat(str(d).strip()) - _dt.date(1970, 1, 1)).days
+        except ValueError:
+            raise ValueError(f"restricted event {ev} with an unknown time needs its New York date as YYYY-MM-DD, "
+                             f"got {d!r}")
+        unk_rows.append((str(ev).strip().upper(), str(d).strip()))
+        unk_days.append(day)
+    return RestrictedCalendar(start=t[order].astype(np.int64), end=(t + dur)[order].astype(np.int64),
+                              names=tuple(nm[i] for i in order), kinds=tuple(kd[i] for i in order),
+                              testimony=tuple(ts_[i] for i in order),
+                              unknown_days=np.unique(np.asarray(unk_days, dtype=np.int64)),
+                              unknown_rows=tuple(unk_rows), source=source)
+
+
+def read_restricted_csv(path=RESTRICTED_CSV) -> RestrictedCalendar:
+    """Read FundingPips' restricted USD events (addendum A1; default the packaged file RESTRICTED_CSV, columns
+    event, date_et, time_et, utc_offset_ny, datetime_utc, kind, basis, source_list, note). Every row is kept.
+    T = datetime_utc (ISO text ending in Z); a row whose time_et is "unknown" or whose datetime_utc is blank is
+    an unknown-time event kept as its New York date (date_et). A FEDCHAIR row is a testimony when its note
+    holds "testimony" (any case). Refuses locked paths, a missing file and missing columns."""
+    df, name = _read_table(path, "restricted calendar")
+    for col in ("event", "date_et", "time_et", "datetime_utc"):
+        if col not in df.columns:
+            raise ValueError(f"restricted calendar {name} is missing the column '{col}' (expected event, date_et, "
+                             "time_et, utc_offset_ny, datetime_utc, kind, basis, source_list, note)")
+    if not len(df):
+        raise ValueError(f"restricted calendar {name} has no rows")
+    ev = df["event"].fillna("").astype(str).str.strip().str.upper()
+    when = df["datetime_utc"].fillna("").astype(str).str.strip()
+    unknown = ((when == "") | (df["time_et"].fillna("").astype(str).str.strip().str.lower() == "unknown")).to_numpy()
+    note = df["note"].fillna("").astype(str) if "note" in df.columns else pd.Series([""] * len(df))
+    tes = ((ev == FEDCHAIR_EVENT) & note.str.contains("testimony", case=False, regex=False)).to_numpy()
+    kinds = df["kind"].fillna("scheduled").astype(str).str.strip() if "kind" in df.columns \
+        else pd.Series(["scheduled"] * len(df))
+    known = ~unknown
+    t = bars_mod.to_epoch_seconds(when[known].reset_index(drop=True), "restricted calendar datetime_utc") \
+        if known.any() else np.zeros(0, dtype=np.int64)
+    dates = df["date_et"].fillna("").astype(str).str.strip()
+    cal = restricted_calendar(t, ev[known].tolist(), kinds[known].tolist(), tes[known].tolist(),
+                              unknown=list(zip(ev[unknown].tolist(), dates[unknown].tolist())), source=str(path))
+    from propkit.report import file_sha256
+    return dataclasses.replace(cal, sha256=file_sha256(path))
+
+
+# ---------------------------------------------------------------------------------------
 # the setup state machines (D4-D10)
 
 def _after_min(values: np.ndarray, idx: np.ndarray, w: int) -> tuple[np.ndarray, np.ndarray]:
@@ -925,7 +1123,11 @@ class Prepared:
     the bar's close), session_ok and news_blocked (of the bar's close, D19/D20), news_pre_unscheduled (that
     block comes only from the 30 minutes before an unscheduled row [SI-63]). Per H1 bar: h1 (with the ema
     column). Per trading-day rank: days, first_bar, vol_median (D18). events: setup_machines output.
-    injected: names of indicators replaced through test_indicators (empty for a real run)."""
+    injected: names of indicators replaced through test_indicators (empty for a real run).
+    Addendum A1 (only when a restricted calendar is given, else None): restricted; fp_close / fp_open: the
+    bar's CLOSE (a trigger close) / OPEN (an entry fill) is blocked by RestrictedCalendar.blocked; and
+    fp_close_pre_unscheduled / fp_open_pre_unscheduled: that block comes only from the 5 minutes before an
+    unscheduled row [SI-63]."""
 
     frame: pd.DataFrame
     news: NewsCalendar | None
@@ -945,6 +1147,11 @@ class Prepared:
     events: list
     injected: tuple = ()
     news_pre_unscheduled: np.ndarray | None = None
+    restricted: RestrictedCalendar | None = None
+    fp_close: np.ndarray | None = None
+    fp_open: np.ndarray | None = None
+    fp_close_pre_unscheduled: np.ndarray | None = None
+    fp_open_pre_unscheduled: np.ndarray | None = None
 
     @property
     def n(self) -> int:
@@ -956,13 +1163,14 @@ class Prepared:
         return [e for e in self.events if e["event"] == "trigger"]
 
 
-def prepare(frame: pd.DataFrame, news: NewsCalendar | None = None, *,
+def prepare(frame: pd.DataFrame, news: NewsCalendar | None = None, *, restricted: RestrictedCalendar | None = None,
             test_indicators: Mapping[str, Any] | None = None) -> Prepared:
     """Build the cost-independent layer of zeno_pullback_v1 from a zeno frame (load_m15_bidask).
 
     news: the D20 calendar (read_news_csv); None means NO news blackout at all and is meant for tests (the
-    result's meta says so). test_indicators (TEST ONLY, documented here and nowhere else): a dict with
-    "atr14" (one value per M15 bar, USD/oz) and/or "ema30_h1" (one value per H1 bar of h1_from_m15(frame),
+    result's meta says so). restricted: FundingPips' restricted events (read_restricted_csv), needed only by
+    the variant "master_fp" (addendum A1); the other variants never read it. test_indicators (TEST ONLY,
+    documented here and nowhere else): a dict with "atr14" (one value per M15 bar, USD/oz) and/or "ema30_h1" (one value per H1 bar of h1_from_m15(frame),
     USD/oz) that replaces the computed indicator, so a hand-computed case can fix them; NaN is allowed and
     means "not available". The default path computes both from the bars (atr14_m15, ema30_h1)."""
     _check_frame(frame)
@@ -1008,10 +1216,19 @@ def prepare(frame: pd.DataFrame, news: NewsCalendar | None = None, *,
         else np.zeros(t.size, dtype=bool)
     events = setup_machines(frame["bid_high"].to_numpy(), frame["bid_low"].to_numpy(),
                             frame["bid_close"].to_numpy(), atr)
+    fp: dict[str, Any] = {}
+    if restricted is not None:
+        if not isinstance(restricted, RestrictedCalendar):
+            raise ValueError("restricted must come from zeno_v1.read_restricted_csv (a RestrictedCalendar)")
+        fp = {"restricted": restricted,
+              "fp_close": np.asarray(restricted.blocked(t_close), dtype=bool),
+              "fp_open": np.asarray(restricted.blocked(t), dtype=bool),
+              "fp_close_pre_unscheduled": np.asarray(restricted.blocked_before_unscheduled_only(t_close), dtype=bool),
+              "fp_open_pre_unscheduled": np.asarray(restricted.blocked_before_unscheduled_only(t), dtype=bool)}
     return Prepared(frame=frame, news=news, time=t, atr=atr, h1=h1, trend_long=trend_long, trend_short=trend_short,
                     server_day=sday, close_day=cday, close_rank=rank, days=days, first_bar=first_bar,
                     vol_median=vol_med, session_ok=sess, news_blocked=nb, events=events, injected=tuple(injected),
-                    news_pre_unscheduled=npu)
+                    news_pre_unscheduled=npu, **fp)
 
 
 # ---------------------------------------------------------------------------------------
@@ -1019,7 +1236,8 @@ def prepare(frame: pd.DataFrame, news: NewsCalendar | None = None, *,
 
 @dataclass(frozen=True)
 class ZenoCell:
-    """One cost cell of the pre-registered grid: variant ("evaluation" | "master", D23), commission in USD
+    """One cost cell of the pre-registered grid: variant ("evaluation" | "master", D23 | "master_fp", addendum
+    A1), commission in USD
     per lot round trip (5 or 10), spread base ("S1" data | "S2" zeno's broker numbers) and cost multiplier
     k (1, 1.5, 2: scales spread, commission and stop slippage). The defaults are the stage-1 cell
     (evaluation, 10, S1, x1.5)."""
@@ -1049,15 +1267,15 @@ class ZenoCell:
 
 
 def grid_cells() -> list[ZenoCell]:
-    """The 24 cells of the pre-registered grid (variant x commission x spread base x multiplier), in a
-    fixed order."""
+    """The 36 cells of the pre-registered grid (3 variants x 2 commissions x 2 spread bases x 3 multipliers;
+    addendum A1 added "master_fp"), in a fixed order: every evaluation cell, then master, then master_fp."""
     return [ZenoCell(v, c, s, k) for v in VARIANTS for c in COMMISSIONS for s in SPREAD_BASES for k in COST_MULTS]
 
 
 @dataclass(frozen=True)
 class ZenoConfig:
     """A simulation's settings: the cost cell, the starting balance (USD, 100,000 = zeno's account) and the
-    risk per trade as a fraction (None = the spec's 0.5%, or 0.4% in the master variant, rule 7 / D23)."""
+    risk per trade as a fraction (None = the spec's 0.5%, or 0.4% in the Master variants, rule 7 / D23)."""
 
     cell: ZenoCell = field(default_factory=ZenoCell)
     capital_usd: float = 100_000.0
@@ -1075,7 +1293,8 @@ class ZenoConfig:
 
     @property
     def risk_fraction(self) -> float:
-        """Risk per trade as a fraction of the closed balance (0.005 evaluation, 0.004 master by default)."""
+        """Risk per trade as a fraction of the closed balance (0.005 evaluation, 0.004 master and master_fp by
+        default)."""
         return RISK_PCT[self.cell.variant] if self.risk_pct is None else float(self.risk_pct)
 
     def to_dict(self) -> dict[str, Any]:
@@ -1094,6 +1313,77 @@ def cost_model_for_cell(cell: ZenoCell) -> CostModel:
 
 
 # ---------------------------------------------------------------------------------------
+# the Master margin cap (addendum A2)
+
+def margin_usd(units: float, price: float) -> float:
+    """FundingPips' Master margin for `units` oz (100 oz = 1 lot) at `price` USD/oz, one position (addendum A2):
+    each tier of MARGIN_TIERS (0.05 lot at 1:50, the next 0.05 at 1:30, the next 0.05 at 1:25, the next 0.10
+    at 1:20, the next 0.25 at 1:10, the rest at 1:5) takes only the volume inside it: sum of oz x price / lev.
+    E.g. 0.50 lot at 4,000 = 400 + 666.67 + 800 + 2,000 + 10,000 = 13,866.67 USD; each lot above 0.50 adds
+    80,000 USD."""
+    rest = max(float(units), 0.0)
+    total = 0.0
+    for size, lev in MARGIN_TIERS:
+        q = min(rest, size)
+        if q <= 0:
+            break
+        total += q * float(price) / lev
+        rest -= q
+    return total
+
+
+def max_units_within_margin(balance: float, price: float) -> float:
+    """The largest whole-oz (0.01-lot) size whose margin_usd at `price` is at most `balance` (+ MARGIN_TOL_USD);
+    0.0 when not even 1 oz fits (addendum A2)."""
+    balance, price = float(balance), float(price)
+    if not (balance > 0 and price > 0 and math.isfinite(balance) and math.isfinite(price)):
+        return 0.0
+    used, units = 0.0, 0.0
+    for size, lev in MARGIN_TIERS:                       # whole tiers that fit, then whole oz of the next one
+        cost = size * price / lev
+        if used + cost <= balance + MARGIN_TOL_USD:
+            used += cost
+            units += size
+            continue
+        units += math.floor((balance + MARGIN_TOL_USD - used) * lev / price)
+        break
+    while units > 0 and margin_usd(units, price) > balance + MARGIN_TOL_USD:   # guard float rounding both ways
+        units -= LOT_STEP_OZ
+    while margin_usd(units + LOT_STEP_OZ, price) <= balance + MARGIN_TOL_USD:
+        units += LOT_STEP_OZ
+    return float(max(units, 0.0))
+
+
+def margin_counts(positions: pd.DataFrame, decisions: pd.DataFrame, variant: str) -> dict[str, Any]:
+    """What the margin rule did in one cell (addendum A2). Master variants: entries capped (n_capped) with
+    their lots before (lots_uncapped) and after the cap, and the triggers blocked because not even 0.01 lot
+    fit (n_blocked). Evaluation (not capped): the entries whose margin at a flat 1:10 and at a flat 1:30
+    (lots x 100 x entry price / leverage) would exceed the closed balance at entry."""
+    trig = decisions[decisions["event"] == "trigger"] if len(decisions) else decisions
+    n = int(len(positions))
+    if variant in MASTER_VARIANTS:
+        cap = positions["margin_capped"].astype(bool).to_numpy() if n else np.zeros(0, dtype=bool)
+        blocked = trig["reasons"].astype(str).str.split(";").apply(lambda r: "margin_cap_below_lot_step" in r) \
+            if len(trig) else pd.Series([], dtype=bool)
+        return {"cap_applies": True, "n_entries": n, "n_capped": int(cap.sum()),
+                "lots_before_cap": round(float(positions["lots_uncapped"].to_numpy()[cap].sum()), 6) if n else 0.0,
+                "lots_after_cap": round(float(positions["lots"].to_numpy()[cap].sum()), 6) if n else 0.0,
+                "n_blocked": int(blocked.sum()),
+                "rule": "tiered margin at the entry fill price <= the closed balance at entry (addendum A2)"}
+    out: dict[str, Any] = {"cap_applies": False, "n_entries": n}
+    for lev in EVAL_FLAT_LEVERAGES:
+        if n:
+            need = positions["units_oz"].to_numpy() * positions["entry_price"].to_numpy() / lev
+            over = need > positions["balance_at_entry"].to_numpy() + MARGIN_TOL_USD
+        else:
+            over = np.zeros(0, dtype=bool)
+        out[f"n_over_flat_1to{lev:g}"] = int(over.sum())
+    out["rule"] = ("not capped (zeno's evaluation account type is not known; Standard 1:30 assumed): entries whose "
+                   "margin at a flat 1:10 or 1:30 would exceed the closed balance at entry (addendum A2)")
+    return out
+
+
+# ---------------------------------------------------------------------------------------
 # the simulation (D11-D23)
 
 class _Pos:
@@ -1102,7 +1392,8 @@ class _Pos:
     __slots__ = ("pid", "side", "ev", "trigger_bar", "entry_bar", "entry_time", "entry", "spread_entry", "stop0",
                  "stop", "be", "tp1", "tp2", "R", "units", "partial_units", "remaining", "tp1_done", "tp2_hit",
                  "balance_at_entry", "risk_budget", "atr_trigger", "atr_median", "x_bar", "x_mode", "next_bar",
-                 "legs", "ambiguous", "m1_ok", "m1_missing", "slippage", "closed", "final_stamp", "day")
+                 "legs", "ambiguous", "m1_ok", "m1_missing", "slippage", "closed", "final_stamp", "day",
+                 "units_uncapped", "margin_capped")
 
     def __init__(self, **kw):
         for k in self.__slots__:
@@ -1172,16 +1463,18 @@ class _Engine:
         self.closed: list[_Pos] = []
         self.status: dict[int, dict[str, Any]] = {}
         self.next_pid = 1
-        self.master: dict[int, list[tuple[int, bool]]] = {}
+        self.fp = cell.variant == "master_fp"             # addendum A1
+        self.margin_cap = cell.variant in MASTER_VARIANTS  # addendum A2
+        if self.fp and (prep.restricted is None or prep.fp_close is None):
+            raise ValueError("variant master_fp needs FundingPips' restricted calendar: prepare(frame, news, "
+                             "restricted=read_restricted_csv(path)) (addendum A1)")
+        self.master: dict[int, list[tuple[int, bool, bool]]] = {}
         self.master_unscheduled: list[int] = []         # positions closed only for unscheduled rows [SI-63]
-        if cell.variant == "master" and prep.news is not None:
-            for T, unsched in zip(prep.news.times.tolist(), prep.news.unscheduled().tolist()):
-                c = T - MASTER_CLOSE_BEFORE_S
-                b = int(np.searchsorted(self.t_np, c, side="right")) - 1
-                if not (b >= 0 and self.t[b] + M15_SECONDS > c):
-                    b += 1                                  # no bar holds T - 10 min: the next bar [SI-40]
-                if 0 <= b < self.n:
-                    self.master.setdefault(b, []).append((c, bool(unsched)))
+        self.master_fp_only: list[int] = []             # master_fp: closed only for events outside rule 9's four
+        if cell.variant in MASTER_VARIANTS and prep.news is not None:
+            self._add_master_closes(prep.news.times, prep.news.unscheduled(), False)
+        if self.fp:                                      # A1: every restricted event with a known time, too
+            self._add_master_closes(prep.restricted.start, prep.restricted.unscheduled(), True)
         self.m1 = None
         if m1 is not None:
             a1 = ask_side(m1, cell.spread_base, self.k)
@@ -1191,6 +1484,17 @@ class _Engine:
                        "al": a1["ask_low"]}
         self.m1_counts = {"bars_resolved": 0, "bars_unresolved": 0, "bars_unresolved_no_m1": 0,
                           "bars_unresolved_m1_mismatch": 0}
+
+    def _add_master_closes(self, times: np.ndarray, unscheduled: np.ndarray, fp_list: bool) -> None:
+        """The D23 close map: for each event T, the bar holding c = T - 10 min (or the next bar when none does,
+        [SI-40]) gets (c, the row is unscheduled, the event comes from the A1 restricted list)."""
+        for T, unsched in zip(np.asarray(times).tolist(), np.asarray(unscheduled).tolist()):
+            c = T - MASTER_CLOSE_BEFORE_S
+            b = int(np.searchsorted(self.t_np, c, side="right")) - 1
+            if not (b >= 0 and self.t[b] + M15_SECONDS > c):
+                b += 1                                  # no bar holds T - 10 min: the next bar [SI-40]
+            if 0 <= b < self.n:
+                self.master.setdefault(b, []).append((c, bool(unsched), bool(fp_list)))
 
     # ----- bookkeeping ---------------------------------------------------------------
 
@@ -1335,10 +1639,12 @@ class _Engine:
         # D20 keeps the trigger close out of [T - 30 min, T + 60 min]) the fill at this open is open at c when
         # c lies in this bar, so the close is at this same open; a fill after c (the bar after a hole, [SI-40])
         # was not open at c and is kept [SI-70]. For a later bar, entry_time <= c always holds.
-        live = [u for c, u in closes if c - MASTER_MAX_AGE_S < pos.entry_time <= c] if closes else []
+        live = [(u, f) for c, u, f in closes if c - MASTER_MAX_AGE_S < pos.entry_time <= c] if closes else []
         if live:
-            if all(live):
+            if all(u for u, _ in live):
                 self.master_unscheduled.append(pos.pid)
+            if all(f for _, f in live):                 # master_fp: no rule-9 event (D23) asked for this close
+                self.master_fp_only.append(pos.pid)
             self._close(pos, o, "signal", j, t[j], t[j])
             return
         adv = self.bl[j] if s > 0 else self.ah[j]
@@ -1396,6 +1702,15 @@ class _Engine:
             fail.add("outside_session")
         if p.news_blocked[i]:
             fail.add("news_blackout")
+        fp_pre = None
+        if self.fp:                                       # A1: the trigger close OR the entry fill
+            fc = bool(p.fp_close[i])
+            fo = bool(p.fp_open[i + 1]) if has_next else False
+            fp_pre = False
+            if fc or fo:
+                fail.add("fp_restricted_window")
+                fp_pre = not ((fc and not p.fp_close_pre_unscheduled[i])
+                              or (fo and not p.fp_open_pre_unscheduled[i + 1]))
         atr_t = float(p.atr[i])                            # D12: ATR at the trigger bar's close
         med = float(p.vol_median[rank]) if rank < p.vol_median.size else float("nan")
         if not math.isfinite(med) or not atr_t <= VOL_CAP_X * med:
@@ -1444,19 +1759,26 @@ class _Engine:
         trend = bool(p.trend_long[i] if s > 0 else p.trend_short[i])
         if not trend:
             fail.add("trend_disagrees")
-        units = 0.0
+        units = units_uncapped = 0.0
+        capped = False
         budget = self.risk * self.balance
         if R > 0:
-            units = floor_to_lot_step(max(budget, 0.0) / R, LOT_STEP_OZ)            # D13: floor to 0.01 lot
+            units = units_uncapped = floor_to_lot_step(max(budget, 0.0) / R, LOT_STEP_OZ)   # D13: floor to 0.01 lot
             if units < LOT_STEP_OZ:
                 fail.add("size_below_lot_step")
+            elif self.margin_cap:                         # A2: the tiered margin at the entry fill price must
+                fit = max_units_within_margin(self.balance, entry)      # fit in the closed balance
+                if units > fit:
+                    units, capped = fit, True
+                    if units < LOT_STEP_OZ:
+                        fail.add("margin_cap_below_lot_step")
         reasons = [r for r in BLOCK_REASONS if r in fail]
         passed = "entered" if self.stateful else ELIGIBLE
         rec = {"status": reasons[0] if reasons else passed, "reasons": ";".join(reasons), "position_id": -1,
                "entry_time": self.t[i + 1] if has_next else -1, "entry_price": entry, "stop_level": stop,
                "spread_entry": spread_e, "atr_trigger": atr_t, "atr_median": med, "trend_ok": trend,
                "news_pre_unscheduled": bool(p.news_pre_unscheduled[i]) if p.news_pre_unscheduled is not None
-               else False}
+               else False, "fp_pre_unscheduled": fp_pre}
         if not reasons and self.stateful:
             e = i + 1
             pid = self.next_pid
@@ -1468,7 +1790,7 @@ class _Engine:
                        tp1_done=False, tp2_hit=False, balance_at_entry=self.balance, risk_budget=budget,
                        atr_trigger=atr_t, atr_median=med, x_bar=x_bar, x_mode=x_mode, next_bar=e, legs=[],
                        ambiguous=False, m1_ok=0, m1_missing=0, slippage=0.0, closed=False, final_stamp=None,
-                       day=int(p.close_day[i]))
+                       day=int(p.close_day[i]), units_uncapped=units_uncapped, margin_capped=capped)
             day.entries += 1
             self.pos = pos
             rec["position_id"] = pid
@@ -1581,7 +1903,8 @@ def _tables(eng: _Engine) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
             "final_exit_stamp": pos.final_stamp, "gross_usd": gross, "commission_usd": comm,
             "slippage_usd": pos.slippage, "swap_usd": 0.0, "net_pnl_usd": net,
             "r_multiple_net": net / (pos.units * pos.R), "outcome": _outcome(pos), "ambiguous_bar": bool(pos.ambiguous),
-            "m1_bars_resolved": pos.m1_ok, "m1_bars_unresolved": pos.m1_missing, "time_exit_rule": _time_exit_rule(pos)})
+            "m1_bars_resolved": pos.m1_ok, "m1_bars_unresolved": pos.m1_missing, "time_exit_rule": _time_exit_rule(pos),
+            "lots_uncapped": round(pos.units_uncapped / CONTRACT_OZ, 6), "margin_capped": bool(pos.margin_capped)})
     legs_df = pd.DataFrame(leg_rows, columns=[c for c in LEG_COLUMNS if c != "trade_id"])
     legs_df.insert(0, "trade_id", np.arange(1, len(legs_df) + 1, dtype=np.int64))
     if len(legs_df):
@@ -1603,12 +1926,13 @@ def _tables(eng: _Engine) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
                "trigger_level": ev["trigger_level"], "bars_since_pullback": ev["bars_since_pullback"],
                "entry_time": -1, "entry_price": float("nan"), "stop_level": float("nan"),
                "spread_entry": float("nan"), "atr_trigger": float("nan"), "atr_median": float("nan"),
-               "trend_ok": None, "news_pre_unscheduled": None}
+               "trend_ok": None, "news_pre_unscheduled": None, "fp_pre_unscheduled": None}
         st = eng.status.get(idx)
         if st is not None:
             row.update(st)
         dec_rows.append(row)
-    dec = pd.DataFrame(dec_rows, columns=[c for c in DECISION_COLUMNS if c not in ("time_utc", "time_sgt")])
+    cols = DECISION_COLUMNS_FP if eng.fp else DECISION_COLUMNS
+    dec = pd.DataFrame(dec_rows, columns=[c for c in cols if c not in ("time_utc", "time_sgt")])
     tt = dec["time"].to_numpy(dtype=np.int64)
     dec.insert(1, "time_utc", _utc_text(tt) if len(dec) else [])
     dec.insert(2, "time_sgt", sgt_str(tt) if len(dec) else [])
@@ -1647,7 +1971,12 @@ def simulate(prep: Prepared, config: ZenoConfig | None = None, *, m1: pd.DataFra
         "news_unscheduled": unscheduled_counts(prep, decisions, eng.master_unscheduled),
         "time_exits": time_exit_counts(positions),
         "indicators_injected": list(prep.injected),
+        "margin": margin_counts(positions, decisions, cfg.cell.variant),
     }
+    if cfg.cell.variant in MASTER_VARIANTS:
+        meta["master_closes"] = master_close_counts(positions, eng.master_fp_only if eng.fp else None)
+    if eng.fp:
+        meta["restricted"] = restricted_counts(prep, decisions)
     return CellResult(cell=cfg.cell, config=cfg, legs=legs, positions=positions, decisions=decisions, meta=meta)
 
 
@@ -1656,13 +1985,53 @@ def unscheduled_counts(prep: Prepared, decisions: pd.DataFrame, master_closes: S
     news blackout comes only from the 30 minutes before an unscheduled row (n_triggers_flagged), and those
     of them with no other blocking reason (n_triggers_blocked_only_before_unscheduled); the Master positions
     closed only for an unscheduled row (master_closes_only_for_unscheduled, position ids). D20 and D23 are
-    applied as written; these counts only show what a trader could not have known at that time."""
+    applied as written; these counts only show what a trader could not have known at that time.
+    Variant master_fp (decisions with fp_pre_unscheduled): also fp_n_rows (unscheduled restricted rows),
+    fp_n_triggers_flagged (the restricted-window block comes only from the 5 minutes before an unscheduled
+    row) and n_triggers_blocked_only_before_unscheduled_any (the reasons are news_blackout and/or
+    fp_restricted_window and each of them is flagged). n_triggers_blocked_only_before_unscheduled keeps its
+    D20 meaning in every variant, so it never exceeds n_triggers_flagged."""
     trig = decisions[decisions["event"] == "trigger"]
     flag = trig["news_pre_unscheduled"].fillna(False).astype(bool).to_numpy() if len(trig) else np.zeros(0, bool)
     only = flag & (trig["reasons"].to_numpy(dtype=object) == "news_blackout") if len(trig) else flag
-    return {"n_rows": int(prep.news.unscheduled().sum()) if prep.news is not None else 0,
-            "n_triggers_flagged": int(flag.sum()), "n_triggers_blocked_only_before_unscheduled": int(only.sum()),
-            "master_closes_only_for_unscheduled": [int(x) for x in master_closes], "reading": "SI-63"}
+    out = {"n_rows": int(prep.news.unscheduled().sum()) if prep.news is not None else 0,
+           "n_triggers_flagged": int(flag.sum()), "n_triggers_blocked_only_before_unscheduled": int(only.sum()),
+           "master_closes_only_for_unscheduled": [int(x) for x in master_closes], "reading": "SI-63"}
+    if "fp_pre_unscheduled" in decisions.columns:
+        fflag = trig["fp_pre_unscheduled"].fillna(False).astype(bool).to_numpy() if len(trig) else np.zeros(0, bool)
+        sets = [set(str(r).split(";")) - {""} for r in trig["reasons"].tolist()]
+        either = np.array([bool(r) and r <= {"news_blackout", "fp_restricted_window"}
+                           and ("news_blackout" not in r or a) and ("fp_restricted_window" not in r or b)
+                           for r, a, b in zip(sets, flag, fflag)], dtype=bool)
+        out["fp_n_rows"] = int(prep.restricted.unscheduled().sum()) if prep.restricted is not None else 0
+        out["fp_n_triggers_flagged"] = int(fflag.sum())
+        out["n_triggers_blocked_only_before_unscheduled_any"] = int(either.sum())
+    return out
+
+
+def master_close_counts(positions: pd.DataFrame, fp_only: Sequence[int] | None = None) -> dict[str, Any]:
+    """The D23 Master closes of one cell: positions closed 10 min before an event (exit reason "signal") and,
+    for master_fp, those closed only for restricted events outside rule 9's four (fp_only, position ids)."""
+    n = 0
+    if len(positions):
+        e2 = positions["exit2_reason"].astype(str).to_numpy()
+        last = np.where(e2 != "", e2, positions["exit1_reason"].astype(str).to_numpy())
+        n = int((last == "signal").sum())
+    out: dict[str, Any] = {"n_positions_closed": n}
+    if fp_only is not None:
+        out["n_closed_only_for_restricted_list"] = len(fp_only)
+        out["closed_only_for_restricted_list"] = [int(x) for x in fp_only]
+    return out
+
+
+def restricted_counts(prep: Prepared, decisions: pd.DataFrame) -> dict[str, Any]:
+    """master_fp: the restricted calendar's summary and the triggers its window blocked (n_triggers_blocked)
+    and blocked with no other reason (n_triggers_blocked_only_by_it), addendum A1."""
+    trig = decisions[decisions["event"] == "trigger"]
+    sets = [set(str(r).split(";")) - {""} for r in trig["reasons"].tolist()] if len(trig) else []
+    return {"calendar": prep.restricted.summary() if prep.restricted is not None else None,
+            "n_triggers_blocked": int(sum("fp_restricted_window" in r for r in sets)),
+            "n_triggers_blocked_only_by_it": int(sum(r == {"fp_restricted_window"} for r in sets))}
 
 
 def screen(prep: Prepared, config: ZenoConfig | None = None) -> pd.DataFrame:
@@ -1671,7 +2040,9 @@ def screen(prep: Prepared, config: ZenoConfig | None = None) -> pd.DataFrame:
     the D21 daily limits, the D22 cooldown, the one open position). No position is opened, so the size uses
     the initial capital. A trigger's status is ELIGIBLE ("eligible") when no other check fails, else its
     first failing reason; reasons lists every failing one. The entered triggers of a run are a subset of
-    the eligible ones of the same cell. Same columns as simulate's decisions (position_id is always -1)."""
+    the eligible ones of the same cell. Same columns as simulate's decisions (position_id is always -1).
+    Variant master_fp also checks the restricted window (addendum A1); both Master variants size with the
+    margin cap at the initial capital (A2)."""
     if not isinstance(prep, Prepared):
         raise ValueError("prep must come from zeno_v1.prepare(frame, news)")
     cfg = config if config is not None else ZenoConfig()

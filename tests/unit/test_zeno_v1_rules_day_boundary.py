@@ -93,7 +93,8 @@ def test_firm_day_start_round_trips_2015_2026_and_the_server_day():
 
 
 def test_day_boundary_names_and_labels():
-    assert cal.DAY_BOUNDARIES == ("cet_midnight", "ny_17", "utc_midnight")
+    # updated for addendum A4: the fourth boundary "utc_plus3" was added (the first three are unchanged)
+    assert cal.DAY_BOUNDARIES == ("cet_midnight", "ny_17", "utc_midnight", "utc_plus3")
     assert cal.boundary_label("ny_17") == "17:00 New York" and cal.boundary_label() == "00:00 CE(S)T"
     with pytest.raises(ValueError, match="day_boundary must be one of"):
         cal.firm_day(0, "ny_18")
@@ -149,7 +150,9 @@ def test_evaluator_utc_midnight_known_answer():
             (ts("2024-07-11 01:00"), 98_600.0, 98_600.0, 98_600.0, 0.0)]
     eq = frame(rows)
     st = {b: evaluate_path(eq, None, daily_rules(b)).status for b in cal.DAY_BOUNDARIES}
-    assert st == {"cet_midnight": "breached_daily", "ny_17": "breached_daily", "utc_midnight": "running"}
+    # updated for addendum A4: utc_plus3 (day began at 21:00 UTC at 100,000 -> floor 98,000 -> breach) is added
+    assert st == {"cet_midnight": "breached_daily", "ny_17": "breached_daily", "utc_midnight": "running",
+                  "utc_plus3": "breached_daily"}
 
 
 def _synthetic_path():
@@ -226,7 +229,12 @@ def test_placeholder_preset_lists_every_unverified_field():
     assert info["sha256"] and len(info["sha256"]) == 64
 
 
-def test_fundingpips_name_falls_back_to_the_placeholder_and_says_so():
+def test_fundingpips_name_falls_back_to_the_placeholder_and_says_so(tmp_path, monkeypatch):
+    # updated for addendum A3: the verified file is installed now, so its absence is simulated with a presets
+    # dir that holds only the placeholder
+    import shutil
+    shutil.copy(R.PRESETS_DIR / "fundingpips_1step_flex_placeholder.json", tmp_path)
+    monkeypatch.setattr(R, "PRESETS_DIR", tmp_path)
     rules, info = R.rules_and_info("fundingpips-1step-flex")
     assert not (R.PRESETS_DIR / "fundingpips_1step_flex.json").exists()
     assert info["preset"] == "fundingpips-1step-flex" and "not installed yet" in info["fallback"]

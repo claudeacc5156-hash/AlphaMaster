@@ -159,9 +159,10 @@ class Scenario:
         ask[["open", "high", "low", "close"]] = np.asarray(rows, dtype=np.float64)
         return z.bidask_frame(bid, ask)
 
-    def prepare(self, news=None, atr: float = ATR, atr_at: dict | None = None, trend: str = "long"):
+    def prepare(self, news=None, atr: float = ATR, atr_at: dict | None = None, trend: str = "long", restricted=None):
         """prepare() with ATR14 injected (atr everywhere, atr_at {bar index: value}) and EMA30 injected so
-        the trend is 'long' (EMA = 1000 + 0.01 j, below price and rising), 'short' (3000 - 0.01 j) or 'none'."""
+        the trend is 'long' (EMA = 1000 + 0.01 j, below price and rising), 'short' (3000 - 0.01 j) or 'none';
+        restricted: FundingPips' restricted calendar for the variant master_fp (addendum A1)."""
         f = self.frame()
         h1 = z.h1_from_m15(f)
         j = np.arange(len(h1), dtype=np.float64)
@@ -169,12 +170,12 @@ class Scenario:
         a = np.full(len(f), float(atr))
         for i, v in (atr_at or {}).items():
             a[i] = v
-        return z.prepare(f, news, test_indicators={"atr14": a, "ema30_h1": ema})
+        return z.prepare(f, news, restricted=restricted, test_indicators={"atr14": a, "ema30_h1": ema})
 
     def run(self, cell=EVAL_10_X1, capital: float = 100_000.0, risk_pct=None, news=None, atr: float = ATR,
-            atr_at: dict | None = None, trend: str = "long", m1=None):
+            atr_at: dict | None = None, trend: str = "long", m1=None, restricted=None):
         """(prep, result) for one cell."""
-        prep = self.prepare(news=news, atr=atr, atr_at=atr_at, trend=trend)
+        prep = self.prepare(news=news, atr=atr, atr_at=atr_at, trend=trend, restricted=restricted)
         res = z.simulate(prep, z.ZenoConfig(cell, capital, risk_pct), m1=m1)
         return prep, res
 

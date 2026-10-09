@@ -16,7 +16,8 @@ Conventions used by every function here:
   * money in USD; *_pct fields are PERCENT (3.0 = 3%); *_ret fields are return fractions (negative = loss);
   * days are prop days (propkit.calendar.prop_day: the CE(S)T calendar date) as int64 days since
     1970-01-01, unless by="utc_day" is asked for, or a day boundary of propkit.calendar.DAY_BOUNDARIES
-    ("cet_midnight" = the prop day, "ny_17" = 17:00 New York, "utc_midnight" = the UTC date).
+    ("cet_midnight" = the prop day, "ny_17" = 17:00 New York, "utc_midnight" = the UTC date, "utc_plus3" =
+    the UTC+3 date, 21:00 UTC to 21:00 UTC).
 
 References (cited again at each formula):
   Lo, A. W. (2002). The Statistics of Sharpe Ratios. Financial Analysts Journal 58(4), 36-52.
@@ -415,7 +416,8 @@ def daily_returns_from_equity(equity: pd.DataFrame, C0: float, by: str = "prop_d
     day with bars (normally Friday). Days: by="prop_day" (default) keys each bar by
     propkit.calendar.prop_day(time), the CE(S)T calendar date of its open (00:00 CE(S)T = 22:00 UTC in
     summer, 23:00 UTC in winter); by="utc_day" uses the UTC date; by= a day boundary ("cet_midnight" = the
-    prop day, "ny_17" = 17:00 New York to 17:00 New York, "utc_midnight") uses propkit.calendar.firm_day.
+    prop day, "ny_17" = 17:00 New York to 17:00 New York, "utc_midnight", "utc_plus3" = 21:00 UTC to 21:00
+    UTC) uses propkit.calendar.firm_day.
     In the US-only DST shift weeks the Sunday reopen hour is its own prop day (see propkit.calendar): it is
     kept as a (short) day.
 

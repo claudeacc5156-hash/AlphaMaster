@@ -29,19 +29,23 @@ default) or change of equity from 00:00 to the day's last bar close ("equity"). 
 is allowed, so a best day of exactly 50% passes.
 
 The firm's day (day_boundary): "cet_midnight" (default, FTMO: 00:00 CE(S)T), "ny_17" (17:00 New York,
-the broker day) or "utc_midnight" (00:00 UTC); B_00:00 / E_00:00 above are then the values at that
-boundary (propkit.calendar.firm_day). The default keeps every FTMO result unchanged.
+the broker day), "utc_midnight" (00:00 UTC) or "utc_plus3" (00:00 UTC+3 = 21:00 UTC all year); B_00:00 /
+E_00:00 above are then the values at that boundary (propkit.calendar.firm_day). The default keeps every
+FTMO result unchanged.
 
 FTMO figures are as stated in CLAUDE.md C6 (FTMO as of 24 Sep 2026). Prop-firm rules change: recheck
 them on the firm's site before every challenge.
 
 Firm presets from a rules file (FIRM_PRESET_NAMES, rules_from_json): a JSON object of PropRules fields plus
 an optional "_meta" block (firm, plan, verified, verified_on, sources, tags per field: "[VP] ..." verified
-from a primary source, "[U] ..." unverified, and the conservative choices made where the sheet could not
-fix a field). fundingpips-1step-flex-placeholder is such a file with NO verified FundingPips number: only
-zeno's own account facts (100,000 USD, the 2% daily-loss option), tagged [U], and conservative structural
-choices. When the verified sheet is installed as presets/fundingpips_1step_flex.json, the name
-fundingpips-1step-flex resolves to it; until then it falls back to the placeholder and says so.
+from a primary source, "[U] ..." unverified, also with the source named inside the brackets, e.g.
+"[VP 1SF] ..." or "[VP 1SF, CMP] ...", the conservative choices made where the sheet could not fix a field,
+and "unmodelled": the firm rules the evaluator does not simulate). fundingpips-1step-flex-placeholder is
+such a file with NO verified FundingPips number: only zeno's own account facts (100,000 USD, the 2%
+daily-loss option), tagged [U], and conservative structural choices. The verified sheet (2026-10-08,
+zeno_pullback_v1 addendum A3) is installed as presets/fundingpips_1step_flex.json and the name
+fundingpips-1step-flex resolves to it; should that file be missing, the name falls back to the placeholder
+and says so.
 """
 from __future__ import annotations
 
@@ -49,6 +53,7 @@ import dataclasses
 import hashlib
 import json
 import math
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -71,6 +76,9 @@ FIRM_PRESET_FILES = {"fundingpips-1step-flex": "fundingpips_1step_flex.json",
 FIRM_PRESET_FALLBACK = {"fundingpips-1step-flex": "fundingpips-1step-flex-placeholder"}
 TAG_VERIFIED = "[VP]"       # verified from a primary source (the firm's own rule page, dated)
 TAG_UNVERIFIED = "[U]"      # unverified: an assumption until the rule sheet says otherwise
+# a tag starts with [VP] / [U] or names its sources inside the brackets: "[VP 1SF]", "[VP 1SF, CMP]", "[U RTP]"
+_TAG_START = re.compile(r"\[(VP|U)(?:\]|[ ,][^\]]*\])")
+_TAG_U_ANYWHERE = re.compile(r"\[U(?:\]|[ ,][^\]]*\])")
 FLOOR_DECIMALS = 8          # floors are rounded to 1e-8 USD
 BEST_DAY_TOL_USD = 1e-6     # best day may exceed share x total by this much (float noise only)
 FTMO_AS_OF = "24 Sep 2026 (CLAUDE.md C6); recheck before every challenge"
@@ -125,7 +133,8 @@ class PropRules:
       breach_inclusive      False: breach when equity < floor; True: when equity <= floor;
       notes                 free text (source and date of the rules);
       day_boundary          where the firm's day starts: "cet_midnight" (00:00 CE(S)T, FTMO, default),
-                            "ny_17" (17:00 New York) or "utc_midnight" (00:00 UTC); it decides B_00:00,
+                            "ny_17" (17:00 New York), "utc_midnight" (00:00 UTC) or "utc_plus3" (00:00
+                            UTC+3 = 21:00 UTC all year); it decides B_00:00,
                             E_00:00, the daily floor's reset and the days the evaluator and the bootstrap
                             count (propkit.calendar.firm_day).
     """
@@ -409,7 +418,19 @@ def preset(name: str, initial_capital: float = 100_000.0, /, **overrides: Any) -
 
 _TAGGED_FIELDS = tuple(f.name for f in dataclasses.fields(PropRules) if f.name not in ("name", "notes"))
 _META_KEYS = ("firm", "plan", "status", "verified", "verified_on", "as_of", "sources", "tags",
-              "conservative_choices", "warning")
+              "conservative_choices", "warning", "unmodelled")
+
+
+def tag_kind(tag) -> str | None:
+    """"VP" or "U" when the tag text starts with [VP] / [U] or a bracket naming sources ("[VP 1SF] ...",
+    "[VP 1SF, CMP] ...", "[U RTP] ..."), else None."""
+    m = _TAG_START.match(tag) if isinstance(tag, str) else None
+    return m.group(1) if m else None
+
+
+def has_u_tag(text) -> bool:
+    """True when the text holds an [U] tag anywhere ("[U] ...", "[U 1SF] ...", "... DST behaviour [U]")."""
+    return isinstance(text, str) and _TAG_U_ANYWHERE.search(text) is not None
 
 
 def _file_sha256(path: Path) -> str:
@@ -442,20 +463,28 @@ def _rules_info(meta: Mapping[str, Any] | None, rules: PropRules, file: str | No
         if t is None:
             t = (f"{TAG_VERIFIED} (sheet verified)" if verified is True else
                  f"{TAG_UNVERIFIED} not stated by a verified rule sheet" if verified is False else "")
-        if not isinstance(t, str) or (t and not (t.startswith(TAG_VERIFIED) or t.startswith(TAG_UNVERIFIED))):
-            raise ValueError(f"_meta.tags.{f} must start with {TAG_VERIFIED} or {TAG_UNVERIFIED}, got {t!r}")
+        if not isinstance(t, str) or (t and tag_kind(t) is None):
+            raise ValueError(f"_meta.tags.{f} must start with {TAG_VERIFIED} or {TAG_UNVERIFIED} (sources may be named "
+                             f"inside the brackets, e.g. [VP 1SF]), got {t!r}")
         if f in changed:
             t = f"{TAG_UNVERIFIED} changed by the rules file {file or ''}".rstrip()
         tags[f] = t
     sources = m.get("sources") or []
     if isinstance(sources, str):
         sources = [sources]
+    unmodelled = m.get("unmodelled") or []
+    if isinstance(unmodelled, str):
+        unmodelled = [unmodelled]
+    if not isinstance(unmodelled, (list, tuple)) or not all(isinstance(x, str) for x in unmodelled):
+        raise ValueError("_meta.unmodelled must be a list of texts (the firm rules the evaluator does not simulate)")
     status = m.get("status") or ("verified" if verified is True else "UNVERIFIED" if verified is False
                                  else "not recorded")
     return {"firm": m.get("firm"), "plan": m.get("plan"), "rules_name": rules.name, "status": str(status),
             "verified": verified, "verified_on": m.get("verified_on"), "as_of": m.get("as_of"),
             "sources": [str(x) for x in sources], "tags": tags,
-            "unverified_fields": [f for f, t in tags.items() if t.startswith(TAG_UNVERIFIED)],
+            "unverified_fields": [f for f, t in tags.items() if tag_kind(t) == "U"],
+            "u_tags": {f: t for f, t in tags.items() if has_u_tag(t)},
+            "unmodelled": [str(x) for x in unmodelled],
             "conservative_choices": dict(m.get("conservative_choices") or {}), "warning": m.get("warning"),
             "file": file, "sha256": sha256, "preset": None, "fallback": None}
 
@@ -465,13 +494,15 @@ def rules_from_json(source, initial_capital: float | None = None) -> tuple[PropR
 
     The object holds PropRules fields (fractions: 0.02 = 2%; null switches a rule off), optionally "base"
     (a preset name whose other fields are kept, as preset(base, **fields)) and "_meta" (firm, plan, status,
-    verified true/false/null, verified_on, as_of, sources, tags {field: "[VP] source, date" | "[U] why"},
-    conservative_choices {field: reason}, warning). Other keys starting with "_" are comments. Unknown
+    verified true/false/null, verified_on, as_of, sources, tags {field: "[VP] source, date" | "[U] why", the
+    bracket may name the source: "[VP 1SF] ..."}, conservative_choices {field: reason}, warning, unmodelled
+    [texts]). Other keys starting with "_" are comments. Unknown
     fields raise ValueError, so a typo cannot pass silently. initial_capital (USD) replaces the file's.
     Without a tag, a field is "[VP] (sheet verified)" when _meta.verified is true and "[U] ..." when it is
     false. Returns (rules, info) with info = firm, plan, rules_name, status, verified, verified_on, as_of,
-    sources, tags (every field but name and notes), unverified_fields, conservative_choices, warning, file,
-    sha256 (of the file), preset and fallback (filled by load_firm_preset). Locked paths are refused."""
+    sources, tags (every field but name and notes), unverified_fields (tag starts with [U]), u_tags {field:
+    tag} (every tag holding an [U] anywhere), unmodelled, conservative_choices, warning, file, sha256 (of the
+    file), preset and fallback (filled by load_firm_preset). Locked paths are refused."""
     file = sha = None
     if isinstance(source, Mapping):
         raw = dict(source)
@@ -516,8 +547,8 @@ def rules_from_json(source, initial_capital: float | None = None) -> tuple[PropR
 def load_firm_preset(name: str, initial_capital: float | None = None) -> tuple[PropRules, dict[str, Any]]:
     """A firm preset (FIRM_PRESET_NAMES) read from its file in propkit/presets, with its provenance.
 
-    "fundingpips-1step-flex" reads presets/fundingpips_1step_flex.json, the VERIFIED rule sheet, once it is
-    installed; until then it falls back to the placeholder and info["fallback"] says so (print it).
+    "fundingpips-1step-flex" reads presets/fundingpips_1step_flex.json, the VERIFIED rule sheet (installed
+    2026-10-08); were the file missing it would fall back to the placeholder and info["fallback"] says so.
     "fundingpips-1step-flex-placeholder" holds no verified FundingPips number (see the module docstring).
     initial_capital: USD (None = the file's). Returns (rules, info) as rules_from_json."""
     key = _preset_key(name)

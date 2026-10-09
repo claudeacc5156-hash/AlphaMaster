@@ -116,7 +116,7 @@ def test_cell_validation_and_labels():
 def test_every_grid_cell_runs_and_agrees_with_propkit_equity():
     f = z.synthetic_m15_bidask(start=utc("2023-01-02 00:00"), n_bars=12_000, seed=11, price=1900.0,
                                vol_per_hour=0.004, spread=0.25)
-    prep = z.prepare(f)
+    prep = z.prepare(f, restricted=z.read_restricted_csv())   # updated for addendum A1: master_fp cells need it
     assert len(prep.triggers()) > 50
     finals = {}
     for cell in z.grid_cells():

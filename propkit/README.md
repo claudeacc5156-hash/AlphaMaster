@@ -67,4 +67,4 @@ number to read. A probability of exactly 0 is shown as `0.0000 (< 0.0003)`: belo
 First `python -m propkit zeno-v1 signals --m15-bid BID.csv --m15-ask ASK.csv --news NEWS.csv --out logs\zeno_g0`
 (XAUUSD M15 bid and ask bars from 2015, the US macro calendar) writes signals.csv, decisions.csv and g0_sample.csv: no P&L, no outcome.
 Check the 20 signals of g0_sample.csv on a chart (gate G0) and write y or n on every row; only if you agree with 18 or more, run `zeno-v1 run ... --g0-confirmed --g0-sample logs\zeno_g0\g0_sample.csv --out logs\zeno_run` (it checks the sample against the data): report.md, gates.json, grid.csv and the trade files.
-Where the spec is silent or contradicts itself (unscheduled FOMC rows, D17's early close on a data gap, the cost multiplier in the spread filter) the literal reading is kept and its effect counted in report.md (METHODS.md 8.6).
+Addendum A (FundingPips) adds the verified preset `fundingpips-1step-flex` (default), a master_fp run on their restricted news list, the Master margin cap and a UTC+3 firm-day check in G4 (METHODS.md 8.8). Where the spec is silent the literal reading is kept and counted in report.md (8.6).

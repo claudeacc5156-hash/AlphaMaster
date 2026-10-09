@@ -1,0 +1,57 @@
+{
+  "_comment": "FundingPips 1 Step Flex, 100,000 USD, 2% daily-loss option, current rules (purchases or resets on or after 2026-09-28). Built from research/FUNDINGPIPS_RULES_2026-10-08.md (sha256 23129e6b9df15d618199fcdeea03a7f3f5aed0dd18a9aa91cbf40f1412522e88). FundingPips was editing its help pages on 2026-10-08; re-check before any purchase or live decision. Research only.",
+  "_meta": {
+    "firm": "FundingPips",
+    "plan": "1 Step Flex, 2% daily-loss option, 100,000 USD (zeno's account, Phase 0 2026-10-08)",
+    "status": "verified rule sheet (2026-10-08); fields tagged [U] are assumptions",
+    "verified": true,
+    "verified_on": "2026-10-08",
+    "as_of": "2026-10-08",
+    "sources": [
+      "1SF https://help.fundingpips.com/hc/en-us/articles/34501697434385-1-Step-Flex (updated_at 2026-10-08T14:05:04Z)",
+      "NEWS https://help.fundingpips.com/hc/en-us/articles/34504137479441-News-Trading-and-Holding-Trades-Over-the-Weekend (2026-10-08T13:14:37Z)",
+      "LEG https://help.fundingpips.com/hc/en-us/articles/51307058233361-FundingPips-Legacy-Rules (2026-09-27T17:14:34Z)",
+      "CMP https://help.fundingpips.com/hc/en-us/articles/48368490585105-Compare-Account-Types (2026-09-28T01:07:37Z)",
+      "MECH https://help.fundingpips.com/hc/en-us/articles/44559256768529-Prop-Trading-101 (2026-08-21T15:00:33Z)",
+      "Sheet: research/FUNDINGPIPS_RULES_2026-10-08.md, sections 2, 3 and 5"
+    ],
+    "tags": {
+      "initial_capital": "[VP 1SF] 100,000 USD is one of the listed sizes; zeno's account size from Phase 0",
+      "profit_target_pct": "[VP 1SF] 'Achieve a 12% profit target during Phase 1' = 12,000 USD on 100,000 USD",
+      "daily_loss_pct": "[VP 1SF, CMP] 2% (the configuration chosen at purchase; 3% is the alternative)",
+      "daily_loss_base": "[VP 1SF] 'day_start': the limit is a % of that day's baseline, not of the starting size",
+      "day_start_reference": "[VP 1SF] 'the system records both balance and equity ... Whichever is higher becomes the baseline' = max_balance_equity; floating P&L counts; [VP MECH] no intraday recalculation",
+      "max_loss_pct": "[VP 1SF] 'Max Loss Limit: 12% of the starting account size ... does not reset'; floor 88,000 USD",
+      "max_loss_mode": "[VP 1SF] static in substance (fixed at the starting size); the word 'static' is [U] for 1SF",
+      "best_day_max_share": "[VP 1SF] none for passing the Evaluation (the 35% rule applies only to Master Monthly 100% payouts)",
+      "best_day_basis": "[U] unused while best_day_max_share is null",
+      "min_trading_days": "[VP 1SF] 'No minimum trading days and no time limit to pass'",
+      "target_requires_flat": "[U] the target basis (balance or equity, flat or not) is not stated; assumed only closed results count (conservative)",
+      "breach_inclusive": "[VP 1SF] official example 'Equity cannot drop to $103,790 that day': reaching the level is a breach",
+      "day_boundary": "[VP 1SF] 'resets at 00:00 Platform Time (UTC+3)'; DST behaviour [U]. Default 'ny_17' (zeno's MT5 server clock reads New York + 7 h, i.e. UTC+3 in US summer, UTC+2 in winter; FundingPips' summer and winter auto-close windows match a server that shifts); sensitivity 'utc_plus3' (fixed 21:00 UTC)"
+    },
+    "unmodelled": [
+      "[VP 1SF] 20-lot hard cap per trade (zeno_pullback_v1 never comes near it at 0.5% risk)",
+      "[VP 1SF] inactivity breach after 30 calendar days with no completed trade",
+      "[VP 1SF, RTP] 'purposely trading during news and speeches' is banned in both phases with no numeric threshold; the rule's own news blackout (D20) is the only proxy",
+      "[U] swaps and commission inside the daily loss: not stated; the evaluator counts all costs (conservative)",
+      "[VP 1SF] Master: news window, profit deduction, daily auto-close, dynamic metals leverage, Striking System ([U] applicability) are handled by the strategy's Master variant, not by these rules"
+    ],
+    "warning": "Rule sheet verified on 2026-10-08 from FundingPips help pages that were being edited that day. The target basis and the Platform Time DST behaviour are [U]; the 'utc_plus3' sensitivity run covers the second."
+  },
+  "name": "FundingPips 1 Step Flex 100K, 2% daily (rules as of 2026-10-08)",
+  "initial_capital": 100000.0,
+  "profit_target_pct": 0.12,
+  "daily_loss_pct": 0.02,
+  "daily_loss_base": "day_start",
+  "day_start_reference": "max_balance_equity",
+  "max_loss_pct": 0.12,
+  "max_loss_mode": "static",
+  "best_day_max_share": null,
+  "best_day_basis": "balance",
+  "min_trading_days": 0,
+  "target_requires_flat": true,
+  "breach_inclusive": true,
+  "day_boundary": "ny_17",
+  "notes": "FundingPips 1 Step Flex 100K 2% daily, current rules (purchase or reset on or after 2026-09-28), verified 2026-10-08 [VP]; target basis and Platform Time DST are [U]. Research only."
+}

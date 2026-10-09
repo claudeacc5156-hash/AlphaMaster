@@ -8,12 +8,14 @@ Commands
             decisions.csv (one row per raw signal, entered or the reason it was skipped).
   rules     print the rule presets.
   selftest  run the known-answer gates (a few seconds) and print PASS/FAIL per gate.
-  zeno-v1   zeno_pullback_v1 (propkit.zeno_v1, propkit.zeno_report), in two stages:
+  zeno-v1   zeno_pullback_v1 with addendum A (propkit.zeno_v1, propkit.zeno_report), in two stages:
             signals  M15 bid/ask bars + the news calendar -> signals.csv, decisions.csv, g0_sample.csv and a
                      counts-only report (no P&L, R or outcome) for the G0 chart check;
-            run      after the G0 check (--g0-confirmed): the 24-cell pre-registered grid, the prop evaluator
-                     and gates.json (G0-G5, kill) -> report.md, report.json, gates.json, trades.csv,
-                     positions.csv, decisions.csv, grid.csv, positions_all_cells.csv (m1_diff.csv with M1).
+            run      after the G0 check (--g0-confirmed): the 36-cell pre-registered grid (variants
+                     evaluation, master, master_fp; master_fp also reads FundingPips' restricted calendar,
+                     --restricted), the prop evaluator and gates.json (G0-G5, kill) -> report.md,
+                     report.json, gates.json, trades.csv, positions.csv, decisions.csv, grid.csv,
+                     positions_all_cells.csv (m1_diff.csv with M1).
 
 Exit codes: 0 success; 1 a selftest gate failed; 2 a usage or data error (a bad option, a missing or
 invalid file, a locked-holdout path, an output that would overwrite an input or leave --out), and also
@@ -514,6 +516,9 @@ def _zeno_inputs(p: argparse.ArgumentParser) -> None:
     p.add_argument("--news", required=True, help="US macro calendar CSV (event, ..., datetime_utc, kind); its NFP, "
                                                  "CPI, PPI and FOMC rows are the news blackout (D20)")
     p.add_argument("--out", required=True, help="output folder (created if missing), such as logs\\zeno_g0")
+    p.add_argument("--restricted", default=None,
+                   help="FundingPips' restricted USD events CSV for the master_fp variant (addendum A1; default the "
+                        "packaged propkit/data/news_calendar/" + zv.RESTRICTED_CSV.name + "); its sha256 is recorded")
 
 
 def _add_zeno(sub) -> None:
@@ -526,7 +531,7 @@ def _add_zeno(sub) -> None:
                     help="eligible signals to sample for the chart check (default 20)")
     sg.add_argument("--seed", type=int, default=zeno_report.DEFAULT_SEED, help="sample seed (default 7)")
     sg.add_argument("--variant", choices=zv.VARIANTS, default=zeno_report.STAGE1_CELL.variant,
-                    help="the declared cell's variant (default evaluation)")
+                    help="the declared cell's variant (default evaluation; master_fp also reads --restricted)")
     sg.add_argument("--commission", type=float, choices=zv.COMMISSIONS,
                     default=zeno_report.STAGE1_CELL.commission_rt_per_lot,
                     help="the declared cell's commission, USD per lot round trip (default 10)")
@@ -535,16 +540,21 @@ def _add_zeno(sub) -> None:
     sg.add_argument("--cost-mult", type=float, choices=zv.COST_MULTS, default=zeno_report.STAGE1_CELL.cost_mult,
                     help="the declared cell's cost multiplier (default 1.5)")
     sg.add_argument("--capital", type=_positive_float, default=100_000.0, help="account size, USD (default 100000)")
-    rn = zsub.add_parser("run", help="stage 2: the 24-cell grid, the prop evaluator and the gates (only after the "
-                                     "G0 check: --g0-confirmed)")
+    rn = zsub.add_parser("run", help=f"stage 2: the {len(zv.grid_cells())}-cell grid, the prop evaluator and the "
+                                     "gates (only after the G0 check: --g0-confirmed)")
     _zeno_inputs(rn)
     rn.add_argument("--g0-confirmed", action="store_true",
                     help="you checked the signals of g0_sample.csv on a chart and agree with at least 18 of 20")
     rn.add_argument("--g0-sample", default=None, help="the g0_sample.csv you checked (its sha256 and your y/n "
                                                       "answers in agree_y_n are recorded in gates.json)")
     rn.add_argument("--rules", default="fundingpips-1step-flex",
-                    help="firm rules: fundingpips-1step-flex (default; the placeholder until the verified sheet is "
-                         "installed), another preset, or a rules .json file")
+                    help="firm rules: fundingpips-1step-flex (default; the verified preset "
+                         "propkit/presets/fundingpips_1step_flex.json, its [U] fields reported), another preset, or "
+                         "a rules .json file")
+    rn.add_argument("--master-primary", choices=zeno_report.MASTER_PRIMARY_CHOICES,
+                    default=zeno_report.DEFAULT_MASTER_PRIMARY,
+                    help="which Master run is the primary Master result (addendum A1; default master_fp, "
+                         "FundingPips' restricted-news rule; the other is reported beside it); neither is gated")
     rn.add_argument("--reference-rules", default=None, help="also run the judging cell under these rules for "
                                                             "comparison (e.g. ftmo-1step); off by default")
     rn.add_argument("--capital", type=_positive_float, default=None,
@@ -767,8 +777,9 @@ def _bytes_job(data: bytes):
     return lambda p: p.write_bytes(data)
 
 
-def _zeno_data(args):
-    """Load the M15 bid/ask pair (the lock is enforced there) and the news calendar; prepare once."""
+def _zeno_data(args, restricted_path: str | None = None):
+    """Load the M15 bid/ask pair (the lock is enforced there), the news calendar and, when restricted_path is
+    given, FundingPips' restricted calendar (addendum A1, for master_fp); prepare once."""
     _say(f"Loading M15 bid/ask bars from {args.m15_bid} and {args.m15_ask} ...")
     frame = zv.load_m15_bidask(args.m15_bid, args.m15_ask)
     s = frame.attrs["zeno_v1"]
@@ -779,8 +790,27 @@ def _zeno_data(args):
     _say(f"Loading the news calendar from {args.news} ...")
     news = zv.read_news_csv(args.news)
     _say(f"  {news.times.size} NFP/CPI/PPI/FOMC events")
+    restricted = None
+    if restricted_path is not None:
+        _say(f"Loading FundingPips' restricted calendar from {restricted_path} ...")
+        restricted = zv.read_restricted_csv(restricted_path)
+        rs = restricted.summary()
+        packaged = rs["sha256"] == zv.RESTRICTED_SHA256
+        _say(f"  {rs['n_events_known_time']} events with a time ({rs['fedchair_testimony']} Fed Chair testimonies), "
+             f"{rs['n_unknown_time']} with an unknown time (blocked all New York day); sha256 {rs['sha256'][:12]}..."
+             + ("" if packaged else " - NOT the packaged file"))
     _say("  preparing (1h trend, ATR14, server days, filters, setup state machines) ...")
-    return zv.prepare(frame, news)
+    return zv.prepare(frame, news, restricted=restricted)
+
+
+def _restricted_path(args, needed: bool) -> str | None:
+    """The restricted calendar to read: --restricted, else the packaged file, when needed (master_fp); None
+    otherwise (a --restricted given anyway is noted and not read)."""
+    if not needed:
+        if args.restricted is not None:
+            _say(f"NOTE: --restricted {args.restricted} is not read: only the master_fp variant uses it.")
+        return None
+    return str(args.restricted) if args.restricted is not None else str(zv.RESTRICTED_CSV)
 
 
 def _zeno_input_info(args, extra: Sequence[tuple[str, str | None]] = ()) -> dict[str, Any]:
@@ -794,10 +824,12 @@ def _zeno_input_info(args, extra: Sequence[tuple[str, str | None]] = ()) -> dict
 def cmd_zeno_signals(args) -> int:
     """`zeno-v1 signals`: stage 1 - signals, decisions and the G0 sample in --out (no P&L, R or outcome)."""
     for path_text, what in ((args.m15_bid, "M15 bid file"), (args.m15_ask, "M15 ask file"),
-                            (args.news, "news calendar")):
-        bars_mod.check_not_locked(path_text, what=what)
+                            (args.news, "news calendar"), (args.restricted, "restricted calendar")):
+        if path_text is not None:
+            bars_mod.check_not_locked(path_text, what=what)
     cell = zv.ZenoCell(args.variant, args.commission, args.spread_base, args.cost_mult)
-    out_dir = prepare_out_dir(args.out, [args.m15_bid, args.m15_ask, args.news], zeno_report.SIGNALS_FILES)
+    out_dir = prepare_out_dir(args.out, [args.m15_bid, args.m15_ask, args.news, args.restricted],
+                              zeno_report.SIGNALS_FILES)
     answered = _g0_answers_in(out_dir / "g0_sample.csv")
     if answered:
         raise UsageError(f"refusing to replace {out_dir / 'g0_sample.csv'}: it holds {answered} answer(s) in agree_y_n "
@@ -805,10 +837,11 @@ def cmd_zeno_signals(args) -> int:
                          "sample over it. Choose another --out folder, or move that file and the signals_report.json "
                          "beside it out of this folder first. Nothing was read or written.")
     _say(report_mod.HEADER)
-    prep = _zeno_data(args)
+    restricted_path = _restricted_path(args, cell.variant == "master_fp")
+    prep = _zeno_data(args, restricted_path)
     _say(f"  screening the triggers in the declared cell {cell.label} ...")
     report, tables = zeno_report.signals_stage(prep, cell, args.capital, args.sample, args.seed,
-                                               inputs=_zeno_input_info(args))
+                                               inputs=_zeno_input_info(args, [("restricted", restricted_path)]))
     g0_bytes = zeno_report.csv_bytes(tables["g0_sample"])
     report["g0"]["sample_sha256"] = hashlib.sha256(g0_bytes).hexdigest()
     written = write_staged(out_dir, [
@@ -961,15 +994,15 @@ def _g0_record(sample_path: str | None) -> dict[str, Any]:
 
 
 def cmd_zeno_run(args) -> int:
-    """`zeno-v1 run`: stage 2 - refuses without --g0-confirmed; otherwise the 24-cell grid, the prop evaluator
-    and the gates, written to --out."""
+    """`zeno-v1 run`: stage 2 - refuses without --g0-confirmed; otherwise the 36-cell grid (addendum A), the prop
+    evaluator and the gates, written to --out."""
     if not args.g0_confirmed:
         raise UsageError(zeno_report.G0_REFUSAL)
     if (args.m1_bid is None) != (args.m1_ask is None):
         raise UsageError("give both --m1-bid and --m1-ask (the D15 second run), or neither")
     inputs = [args.m15_bid, args.m15_ask, args.news, _rules_path(args.rules),
               _rules_path(args.reference_rules) if args.reference_rules else None, args.m1_bid, args.m1_ask,
-              args.g0_sample]
+              args.g0_sample, args.restricted]
     for path_text in inputs:
         if path_text is not None:
             bars_mod.check_not_locked(path_text, what="input file")
@@ -984,19 +1017,21 @@ def cmd_zeno_run(args) -> int:
         _say(f"WARNING: {info['fallback']}.")
     if info.get("verified") is False or info.get("unverified_fields"):
         _say(f"WARNING: {info.get('warning') or 'firm rules unverified: ' + ', '.join(info['unverified_fields'])}")
-    prep = _zeno_data(args)
+    restricted_path = _restricted_path(args, True)
+    prep = _zeno_data(args, restricted_path)
     if args.g0_sample is not None:
         _say(f"Checking that the G0 sample {Path(args.g0_sample).name} belongs to this data ...")
         g0["sample_check"] = _g0_sample_match(args.g0_sample, prep, rules.initial_capital)
         _say(f"  {g0['sample_check']['n_matched']} of {g0['sample_check']['n_rows']} sampled signals are eligible "
              f"signals of this data ({g0['sample_check']['declared_cell']}) with the same entry and stop.")
-    _say(f"Running the 24 cells under {rules.name} ({rules.initial_capital:,.0f} USD) ...")
+    _say(f"Running the {len(zv.grid_cells())} cells under {rules.name} ({rules.initial_capital:,.0f} USD; primary "
+         f"Master run {args.master_primary}) ...")
     extra = [("m1_bid", args.m1_bid), ("m1_ask", args.m1_ask), ("g0_sample", args.g0_sample),
-             ("rules", _rules_path(args.rules))]
+             ("rules", _rules_path(args.rules)), ("restricted", restricted_path)]
     report, tables = zeno_report.run_stage(
         prep, rules, info, n_sims=args.n_sims, seed=args.seed, history_reps=args.history_reps, reference=reference,
         m1=(args.m1_bid, args.m1_ask) if args.m1_bid else None, g0=g0, inputs=_zeno_input_info(args, extra),
-        progress=lambda s: _say(f"  {s}"))
+        master_primary=args.master_primary, progress=lambda s: _say(f"  {s}"))
     jobs = [("report.json", _json_job(report)),
             ("report.md", lambda p: p.write_text(zeno_report.render_run_markdown(report), encoding="ascii")),
             ("gates.json", _json_job(report["gates"])),
