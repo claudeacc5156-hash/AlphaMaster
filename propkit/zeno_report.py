@@ -130,7 +130,10 @@ G0_INSTRUCTIONS = (
     "chart (UTC, or SGT with the _sgt columns) and check by eye that the setup is your rule: H and L, the "
     "pullback-low bar (pullback-high bar for a short), the trigger bar, the entry at the next bar's open and "
     "the stop (entry_price and stop_level are the chart's: the ask open for a long, the bid open for a short, "
-    "the short's stop with the data's spread at that open). Write y or n in agree_y_n on EVERY row. Go on to "
+    "the short's stop with the data's spread at that open). `zeno-v1 g0-charts --m15-bid BID --m15-ask ASK "
+    "--sample DIR/g0_sample.csv` (add --news NEWS if this stage read a calendar other than the packaged one) "
+    "draws every row from these files with each part of the rule marked, in DIR/g0_charts.html (open it in a "
+    "browser). Write y or n in agree_y_n on EVERY row. Go on to "
     "`zeno-v1 run ... --g0-confirmed --g0-sample DIR/g0_sample.csv` only if you agree with at least 18 of 20; "
     "leave the file beside signals_report.json, because the run checks that every sampled signal is a signal "
     "of the data it judges. This file shows signals without P&L, so it is not a result (spec: Change policy).")
@@ -398,6 +401,20 @@ def _sample_no(value: Any, default: int) -> int:
         return default
 
 
+def g0_row_key(row: Any) -> tuple[int | None, str, float, float]:
+    """One G0 sample row read as (signal time, side, entry_price, stop_level): the time in UTC epoch seconds from
+    signal_time_utc (stage 1's 'YYYY-MM-DD HH:MM:SS UTC' text; None when it, the entry or the stop cannot be
+    read, with NaN prices), the side lower-cased, the prices in USD/oz. g0_sample_check and the G0 charts
+    (zeno_g0_charts) read a row this way."""
+    t_txt, side = str(row["signal_time_utc"]).strip(), str(row["side"]).strip().lower()
+    try:
+        t = int(pd.Timestamp(t_txt.removesuffix("UTC").strip(), tz="UTC").timestamp())
+        entry, stop = float(row["entry_price"]), float(row["stop_level"])
+    except (TypeError, ValueError):
+        return None, side, math.nan, math.nan
+    return t, side, entry, stop
+
+
 def g0_sample_check(prep: zv.Prepared, sample: pd.DataFrame, cell: zv.ZenoCell | None = None,
                     capital: float = 100_000.0) -> dict[str, Any]:
     """Whether a G0 sample belongs to the data of `prep` [SI-69]: each row must be a trigger of this data at the
@@ -420,13 +437,9 @@ def g0_sample_check(prep: zv.Prepared, sample: pd.DataFrame, cell: zv.ZenoCell |
     unmatched = []
     for r in range(len(sample)):
         row = sample.iloc[r]
-        t_txt, side = str(row["signal_time_utc"]).strip(), str(row["side"]).strip().lower()
-        why = ""
-        try:
-            t = int(pd.Timestamp(t_txt.removesuffix("UTC").strip(), tz="UTC").timestamp())
-            entry, stop = float(row["entry_price"]), float(row["stop_level"])
-        except (TypeError, ValueError):
-            t, entry, stop, why = None, math.nan, math.nan, "its time, entry or stop cannot be read"
+        t_txt = str(row["signal_time_utc"]).strip()
+        t, side, entry, stop = g0_row_key(row)
+        why = "" if t is not None else "its time, entry or stop cannot be read"
         i = where.get((t, side)) if t is not None else None
         if not why and i is None:
             why = "no trigger at that time and side in this data"

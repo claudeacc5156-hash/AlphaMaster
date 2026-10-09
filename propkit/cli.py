@@ -11,6 +11,9 @@ Commands
   zeno-v1   zeno_pullback_v1 with addendum A (propkit.zeno_v1, propkit.zeno_report), in two stages:
             signals  M15 bid/ask bars + the news calendar -> signals.csv, decisions.csv, g0_sample.csv and a
                      counts-only report (no P&L, R or outcome) for the G0 chart check;
+            g0-charts  the same M15 files + g0_sample.csv -> g0_charts.html beside it: each sampled signal
+                     drawn up to its entry with every element of the rule marked (a viewer for the G0 check;
+                     nothing after an entry's open, no result);
             run      after the G0 check (--g0-confirmed): the 36-cell pre-registered grid (variants
                      evaluation, master, master_fp; master_fp also reads FundingPips' restricted calendar,
                      --restricted), the prop evaluator and gates.json (G0-G5, kill) -> report.md,
@@ -31,6 +34,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import hashlib
+import io
 import json
 import math
 import os
@@ -50,6 +54,7 @@ from propkit import calendar
 from propkit import stress as stress_mod
 from propkit import report as report_mod
 from propkit import rules as rules_mod
+from propkit import zeno_g0_charts
 from propkit import zeno_report
 from propkit import zeno_v1 as zv
 from propkit.costs import CostModel
@@ -524,7 +529,7 @@ def _zeno_inputs(p: argparse.ArgumentParser) -> None:
 def _add_zeno(sub) -> None:
     """The zeno-v1 command with its two stages, signals and run."""
     zs = sub.add_parser("zeno-v1", help="zeno_pullback_v1: signals for the G0 check, then the pre-registered run")
-    zsub = zs.add_subparsers(dest="zeno_command", metavar="{signals,run}", parser_class=_Parser)
+    zsub = zs.add_subparsers(dest="zeno_command", metavar="{signals,g0-charts,run}", parser_class=_Parser)
     sg = zsub.add_parser("signals", help="stage 1: signals, decisions and the G0 sample (no P&L, R or outcome)")
     _zeno_inputs(sg)
     sg.add_argument("--sample", type=_positive_int, default=zeno_report.G0_SAMPLE_SIZE,
@@ -540,6 +545,23 @@ def _add_zeno(sub) -> None:
     sg.add_argument("--cost-mult", type=float, choices=zv.COST_MULTS, default=zeno_report.STAGE1_CELL.cost_mult,
                     help="the declared cell's cost multiplier (default 1.5)")
     sg.add_argument("--capital", type=_positive_float, default=100_000.0, help="account size, USD (default 100000)")
+    gc = zsub.add_parser("g0-charts", help="draw each row of g0_sample.csv up to its entry, every element of the "
+                                           "rule marked (one HTML page; no result)")
+    gc.add_argument("--m15-bid", required=True, help="the M15 BID bars stage 1 read (same formats and lock as "
+                                                     "`signals`)")
+    gc.add_argument("--m15-ask", required=True, help="the matching M15 ASK bars")
+    gc.add_argument("--sample", required=True, help="the g0_sample.csv of `zeno-v1 signals` (read only, never "
+                                                    "changed; the signals_report.json beside it names the declared "
+                                                    "cell)")
+    gc.add_argument("--out", default=None, help=f"the page to write, an .html file (default: "
+                                                f"{zeno_g0_charts.G0_CHARTS_FILE} beside the sample)")
+    gc.add_argument("--force", action="store_true", help="replace an existing page at --out")
+    gc.add_argument("--news", default=None, help="US macro calendar CSV for the news-blackout marks (default the "
+                                                 "packaged propkit/data/news_calendar/"
+                                                 + zeno_g0_charts.PACKAGED_NEWS_CSV.name + ")")
+    gc.add_argument("--restricted", default=None,
+                    help="only when the declared cell is master_fp: FundingPips' restricted events CSV (default the "
+                         "packaged " + zv.RESTRICTED_CSV.name + ")")
     rn = zsub.add_parser("run", help=f"stage 2: the {len(zv.grid_cells())}-cell grid, the prop evaluator and the "
                                      "gates (only after the G0 check: --g0-confirmed)")
     _zeno_inputs(rn)
@@ -879,14 +901,12 @@ def _g0_answers_in(path: Path) -> int:
     return int((df[cols["agree_y_n"]].astype(str).str.strip() != "").sum())
 
 
-def _g0_declared(sample: Path, capital: float, prep: zv.Prepared) -> tuple[zv.ZenoCell, float, dict[str, Any]]:
+def _g0_declared_cell(sample: Path, capital: float) -> tuple[zv.ZenoCell, float, dict[str, Any] | None, Path]:
     """The cost cell and capital stage 1 declared for a G0 sample, from the signals_report.json beside it (the
-    stage-1 cell and `capital` when there is none), and what that report says about the data (stage-1 seed;
-    same_data_files: whether its bid and ask sha256 equal this run's, None when unknown) [SI-69]."""
+    stage-1 cell and `capital` when there is none), that report (None when there is none) and its path."""
     rp = sample.parent / "signals_report.json"
-    info: dict[str, Any] = {"signals_report": None, "stage1_seed": None, "same_data_files": None}
     if not rp.is_file():
-        return zeno_report.STAGE1_CELL, float(capital), info
+        return zeno_report.STAGE1_CELL, float(capital), None, rp
     bars_mod.check_not_locked(rp, what="signals report")
     try:
         rep = json.loads(rp.read_text(encoding="utf-8"))
@@ -896,11 +916,87 @@ def _g0_declared(sample: Path, capital: float, prep: zv.Prepared) -> tuple[zv.Ze
     except (OSError, ValueError, KeyError, TypeError) as e:
         raise UsageError(f"cannot read the declared cost cell from {rp} ({type(e).__name__}: {e}); it belongs to the "
                          "G0 sample beside it (zeno-v1 signals writes both)")
+    return cell, cap, rep, rp
+
+
+def _g0_declared(sample: Path, capital: float, prep: zv.Prepared) -> tuple[zv.ZenoCell, float, dict[str, Any]]:
+    """The cost cell and capital stage 1 declared for a G0 sample, from the signals_report.json beside it (the
+    stage-1 cell and `capital` when there is none), and what that report says about the data (stage-1 seed;
+    same_data_files: whether its bid and ask sha256 equal this run's, None when unknown) [SI-69]."""
+    cell, cap, rep, rp = _g0_declared_cell(sample, capital)
+    info: dict[str, Any] = {"signals_report": None, "stage1_seed": None, "same_data_files": None}
+    if rep is None:
+        return cell, cap, info
     data, now = rep.get("data") or {}, prep.frame.attrs.get("zeno_v1") or {}
     pairs = [(data.get(k), now.get(k)) for k in ("bid_sha256", "ask_sha256")]
     same = None if any(a is None or b is None for a, b in pairs) else all(a == b for a, b in pairs)
     info.update(signals_report=str(rp), stage1_seed=(rep.get("g0") or {}).get("seed"), same_data_files=same)
     return cell, cap, info
+
+
+# The calendars stage 1 records in signals_report.json (inputs) that decide a block reason of their own:
+# (inputs key, command-line option, the reason they decide, what to call them).
+G0_CALENDARS = (("news", "--news", "news_blackout", "news calendar"),
+                ("restricted", "--restricted", "fp_restricted_window", "restricted calendar"))
+
+
+def _g0_other_calendars(rep: dict[str, Any] | None, now: dict[str, tuple[str, str] | None]) -> list[dict[str, Any]]:
+    """The calendars stage 1 read (rep = its signals_report.json) whose sha256 differ from the ones read now
+    (now: inputs key -> (path, sha256), None when not read): each with option, reason, what, the stage-1 file
+    and sha256, and the path read now."""
+    inputs = (rep or {}).get("inputs") or {}
+    out = []
+    for key, option, reason, what in G0_CALENDARS:
+        rec, cur = inputs.get(key) or {}, now.get(key)
+        if cur is not None and rec.get("sha256") and rec["sha256"] != cur[1]:
+            out.append({"option": option, "reason": reason, "what": what, "file": str(rec.get("file", "")),
+                        "sha256": str(rec["sha256"]), "now": cur[0]})
+    return out
+
+
+def _g0_check_sample(df: pd.DataFrame, p: Path, prep: zv.Prepared, capital: float,
+                     option: str = "--g0-sample", calendars: Sequence[dict[str, Any]] = ()) -> dict[str, Any]:
+    """zeno_report.g0_sample_check of a G0 sample table read from p, in the cell declared beside it [SI-69]; the
+    record for gates.json. UsageError (before anything is written) when a row does not match; option names the
+    command-line option of the sample in the messages. calendars (_g0_other_calendars): the calendars stage 1
+    read that differ from this run's; when every failing row is blocked by such a calendar's reason, the
+    message says so and names the option that reads stage 1's file (the bars are not at fault)."""
+    df.columns = [str(c).strip() for c in df.columns]
+    cell, cap, info = _g0_declared(p, capital, prep)
+    try:
+        chk = zeno_report.g0_sample_check(prep, df, cell, cap)
+    except ValueError as e:
+        raise UsageError(f"{option} {p.name}: {e}")
+    chk.update(info)
+    if not chk["ok"]:
+        n_bad = chk["n_rows"] - chk["n_matched"]
+        bad = chk["unmatched"]
+        u = bad[0]
+        first = f"first: sample row {u['sample_no']}, {u['signal_time_utc']} {u['side']}: {u['why']}"
+
+        def blocked_by(c: dict[str, Any]) -> bool:
+            return any(c["reason"] in x["why"] for x in bad)
+
+        hit = [c for c in calendars if blocked_by(c)]
+        fixes = "; ".join(
+            f"{c['option']} {c['file']}" + ("" if Path(c["file"]).expanduser().is_file() else
+                                             " (that path, as stage 1 was given it, is not found from here: give "
+                                             "the same file)") for c in hit)
+        if hit and len(bad) == n_bad and all(any(c["reason"] in x["why"] for c in hit) for x in bad):
+            raise UsageError(
+                f"{option} {p.name}: {n_bad} of {chk['n_rows']} rows are not eligible signals in the declared cell "
+                f"{chk['declared_cell']} with the calendar(s) read here ({first}). Stage 1 read another "
+                + " and another ".join(f"{c['what']} (signals_report.json beside the sample: {c['file']}, sha256 "
+                                       f"{c['sha256'][:12]}...) than {c['now']}" for c in hit)
+                + f"; the M15 files are not at fault. Run g0-charts again with {fixes}. Nothing was written.")
+        also = (f" Stage 1 also read another calendar than this run: add {fixes} to read the same one." if hit
+                else "")
+        raise UsageError(f"the G0 sample {p.name} does not belong to this data: {n_bad} of {chk['n_rows']} rows are not "
+                         f"eligible signals of these M15 files in the declared cell {chk['declared_cell']} with the "
+                         f"same time, side, entry and stop ({first}). G0 checks THIS data's signals: run `zeno-v1 "
+                         f"signals` on these files and check that sample on a chart (spec: Gates, G0).{also} Nothing "
+                         "was written.")
+    return chk
 
 
 def _g0_sample_match(sample_path: str, prep: zv.Prepared, capital: float) -> dict[str, Any]:
@@ -911,25 +1007,119 @@ def _g0_sample_match(sample_path: str, prep: zv.Prepared, capital: float) -> dic
         df = pd.read_csv(p, dtype=str, keep_default_na=False)
     except (OSError, ValueError) as e:
         raise UsageError(f"--g0-sample {p.name} cannot be read as CSV: {e}")
-    df.columns = [str(c).strip() for c in df.columns]
-    cell, cap, info = _g0_declared(p, capital, prep)
-    try:
-        chk = zeno_report.g0_sample_check(prep, df, cell, cap)
-    except ValueError as e:
-        raise UsageError(f"--g0-sample {p.name}: {e}")
-    chk.update(info)
-    if not chk["ok"]:
-        n_bad = chk["n_rows"] - chk["n_matched"]
-        u = chk["unmatched"][0]
-        raise UsageError(f"the G0 sample {p.name} does not belong to this data: {n_bad} of {chk['n_rows']} rows are not "
-                         f"eligible signals of these M15 files in the declared cell {chk['declared_cell']} with the "
-                         f"same time, side, entry and stop (first: sample row {u['sample_no']}, {u['signal_time_utc']} "
-                         f"{u['side']}: {u['why']}). G0 checks THIS data's signals: run `zeno-v1 signals` on these "
-                         "files and check that sample on a chart (spec: Gates, G0). Nothing was written.")
+    chk = _g0_check_sample(df, p, prep, capital)
     if chk["same_data_files"] is False:
         _say(f"NOTE: {p.name} was drawn from other files (their sha256 differ from these), but each of its rows is an "
              "eligible signal of these files with the same entry and stop.")
     return chk
+
+
+def _g0_charts_target(out_text: str | None, sample: Path, inputs: Sequence[str | None], force: bool) -> Path:
+    """The page `zeno-v1 g0-charts` may write: --out, or g0_charts.html beside the sample. Refused: a locked
+    path, a folder or anything but an .html / .htm file name, one of the inputs, an existing page without
+    --force (with --force, one that cannot be replaced)."""
+    target = Path(out_text).expanduser() if out_text else sample.parent / zeno_g0_charts.G0_CHARTS_FILE
+    what = f"--out {out_text}" if out_text else f"the default page {target}"
+    bars_mod.check_not_locked(target, what="output file", verb="write")
+    if target.is_dir():
+        raise UsageError(f"{what} is a folder; give the page's file name, such as "
+                         f"{Path(out_text or '.') / zeno_g0_charts.G0_CHARTS_FILE}")
+    if target.suffix.lower() not in (".html", ".htm"):
+        raise UsageError(f"{what}: the page is an .html file; give a name ending in .html, such as "
+                         f"logs\\zeno_g0\\{zeno_g0_charts.G0_CHARTS_FILE}")
+    if target.parent.exists() and not target.parent.is_dir():
+        raise UsageError(f"{what}: {target.parent} is a file, not a folder")
+    for src in inputs:
+        if src is not None and _resolved(src) == _resolved(target):
+            raise UsageError(f"{what} is the input file {src}; it would be overwritten. Choose another --out")
+    if os.path.lexists(target):
+        if not force:
+            raise UsageError(f"{target} already exists; add --force to replace it (or give another --out). Nothing "
+                             "was read or written.")
+        _check_replaceable(target)
+    return target
+
+
+def _write_page(target: Path, data: bytes) -> None:
+    """Write data to target through a fresh temporary file in the same folder (a unique new name, so no other
+    file is touched) and one rename, so a failure never leaves a half-written page."""
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.parent / f"{TMP_PREFIX}{target.stem}_{os.urandom(8).hex()}.tmp"
+    created = False
+    try:
+        with open(tmp, "xb") as f:                    # "x": a new file only, never an existing one
+            created = True
+            f.write(data)
+        os.replace(tmp, target)
+        created = False
+    finally:
+        if created:
+            tmp.unlink(missing_ok=True)
+
+
+def cmd_zeno_g0_charts(args) -> int:
+    """`zeno-v1 g0-charts`: draw every row of a G0 sample from the M15 files (propkit.zeno_g0_charts) into one
+    self-contained HTML page; the sample and everything else beside it are only read."""
+    for path_text, what in ((args.m15_bid, "M15 bid file"), (args.m15_ask, "M15 ask file"),
+                            (args.sample, "G0 sample file"), (args.news, "news calendar"),
+                            (args.restricted, "restricted calendar")):
+        if path_text is not None:
+            bars_mod.check_not_locked(path_text, what=what)
+    sample = Path(args.sample).expanduser()
+    if not sample.is_file():
+        raise UsageError(f"--sample {args.sample}: file not found (the g0_sample.csv written by `zeno-v1 signals`)")
+    news_path = str(args.news) if args.news is not None else str(zeno_g0_charts.PACKAGED_NEWS_CSV)
+    signals_report = sample.parent / "signals_report.json"
+    target = _g0_charts_target(args.out, sample, [args.m15_bid, args.m15_ask, args.sample, news_path,
+                                                  args.restricted, str(signals_report)], args.force)
+    raw = sample.read_bytes()
+    try:
+        df = pd.read_csv(io.BytesIO(raw), dtype=str, keep_default_na=False)
+    except (OSError, ValueError) as e:
+        raise UsageError(f"--sample {sample.name} cannot be read as CSV: {e}")
+    if not len(df):
+        raise UsageError(f"--sample {sample.name} has no rows; use the g0_sample.csv that `zeno-v1 signals` wrote")
+    cell, capital, rep, _ = _g0_declared_cell(sample, 100_000.0)
+    restricted_path = None
+    if cell.variant == "master_fp":
+        restricted_path = str(args.restricted) if args.restricted is not None else str(zv.RESTRICTED_CSV)
+    frame = zv.load_m15_bidask(args.m15_bid, args.m15_ask)
+    news = zv.read_news_csv(news_path)
+    restricted = zv.read_restricted_csv(restricted_path) if restricted_path is not None else None
+    prep = zv.prepare(frame, news, restricted=restricted)
+    other = _g0_other_calendars(rep, {"news": (news_path, news.sha256),
+                                      "restricted": None if restricted is None else
+                                      (restricted_path, restricted.summary()["sha256"])})
+    chk = _g0_check_sample(df, sample, prep, capital, option="--sample", calendars=other)
+    s = frame.attrs["zeno_v1"]
+    notes = []
+    if rep is None:
+        notes.append(f"No signals_report.json beside the sample: the stage-1 cell {cell.label} and "
+                     f"{capital:,.0f} USD are assumed for the eligibility check.")
+    if chk.get("same_data_files") is False:
+        notes.append("The sample was drawn from other files (their sha256 differ from these), but each of its rows "
+                     "is an eligible signal of these files with the same entry and stop.")
+    for c in other:
+        notes.append(f"Stage 1 read another {c['what']} (sha256 {c['sha256']}); every row also passes with "
+                     "this one.")
+    if s.get("range_note"):
+        notes.append(f"Data: {s['range_note']}.")
+    if args.restricted is not None and restricted_path is None:
+        notes.append("--restricted was not read: only a master_fp declared cell uses it.")
+    header = {"bid_file": s["bid_file"], "ask_file": s["ask_file"], "bid_sha256": s["bid_sha256"],
+              "ask_sha256": s["ask_sha256"], "n_bars": s["n_bars"], "sample_file": str(sample),
+              "sample_sha256": hashlib.sha256(raw).hexdigest(), "n_rows": int(len(df)), "news_file": news_path,
+              "news_sha256": news.sha256, "news_events": int(news.times.size), "declared_cell": cell.label,
+              "declared_from": ("signals_report.json beside the sample" if rep is not None else
+                                "assumed: no signals_report.json beside the sample"),
+              "capital_usd": capital, "notes": notes}
+    text, n = zeno_g0_charts.g0_charts_html(prep, df, cell, capital, header)
+    _write_page(target, text.encode("ascii"))
+    _say(report_mod.HEADER)
+    _say(f"Wrote {target}")
+    _say(f"{n} of {len(df)} rows of {sample.name} drawn, each up to its entry and nothing after it; open the page "
+         "in a browser and write y or n in agree_y_n of the sample.")
+    return EXIT_OK
 
 
 def _g0_record(sample_path: str | None) -> dict[str, Any]:
@@ -1063,10 +1253,11 @@ def cmd_zeno_run(args) -> int:
 
 
 def cmd_zeno_v1(args) -> int:
-    """`zeno-v1 signals|run`."""
+    """`zeno-v1 signals|g0-charts|run`."""
     if args.zeno_command is None:
-        raise UsageError("zeno-v1 needs a stage: signals (first, for the G0 check) or run (after it)")
-    return {"signals": cmd_zeno_signals, "run": cmd_zeno_run}[args.zeno_command](args)
+        raise UsageError("zeno-v1 needs a stage: signals (first, for the G0 check), g0-charts (draws the G0 sample) "
+                         "or run (after the check)")
+    return {"signals": cmd_zeno_signals, "g0-charts": cmd_zeno_g0_charts, "run": cmd_zeno_run}[args.zeno_command](args)
 
 
 COMMANDS = {"evaluate": cmd_evaluate, "pullback": cmd_pullback, "rules": cmd_rules, "selftest": cmd_selftest,

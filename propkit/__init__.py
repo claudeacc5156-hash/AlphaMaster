@@ -23,7 +23,8 @@ Modules: calendar (prop day, DST, sessions), costs (CostModel), bars (load and v
 size), equity (EQUITY from TRADES or POSITIONS), adapters (CSV files, AlphaMaster positions), stats (Sharpe,
 PSR, DSR, drawdown), indicators, pullback (a generic parametric pullback), zeno_v1 (zeno_pullback_v1, the
 frozen rule, bid + ask M15), zeno_report (its two-stage runner: signals for the G0 check, then the
-pre-registered grid and gates), stress, report, cli, selftest. PropRules.day_boundary picks the firm's day
+pre-registered grid and gates), zeno_g0_charts (the G0 charts page: each sampled signal drawn up to its
+entry), stress, report, cli, selftest. PropRules.day_boundary picks the firm's day
 (cet_midnight default, ny_17, utc_midnight, utc_plus3; calendar.firm_day).
 """
 from __future__ import annotations

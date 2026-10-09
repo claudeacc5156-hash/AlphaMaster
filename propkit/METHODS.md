@@ -198,6 +198,9 @@ file names below are examples; the news calendar is the project's `research\news
 # stage 1 (about 10 s): signals for the G0 chart check - no P&L, no R, no outcome
 python -m propkit zeno-v1 signals --m15-bid research\data\xauusd\m15\XAUUSD_M15_bid.csv --m15-ask research\data\xauusd\m15\XAUUSD_M15_ask.csv --news research\news_calendar\us_macro_events_2015-01-01_2025-09-27.csv --out logs\zeno_g0
 
+# G0 charts (a few seconds): logs\zeno_g0\g0_charts.html draws each of the 20 rows up to its entry (section 8.9)
+python -m propkit zeno-v1 g0-charts --m15-bid research\data\xauusd\m15\XAUUSD_M15_bid.csv --m15-ask research\data\xauusd\m15\XAUUSD_M15_ask.csv --sample logs\zeno_g0\g0_sample.csv
+
 # G0: open logs\zeno_g0\g0_sample.csv, check every row on an M15 BID chart, write y or n in agree_y_n on every row
 
 # stage 2 (a few minutes for 10.7 years): only if you agree with at least 18 of the 20
@@ -405,3 +408,53 @@ Readings where the addendum is silent or does not fit the code (the literal read
   gap.
 - utc_plus3 puts the hour after the US-winter Friday close in a Saturday firm day; propkit.bootstrap's
   week blocks (Sunday to Saturday) keep it in Friday's week.
+
+### 8.9 The G0 charts (`zeno-v1 g0-charts`)
+
+`zeno-v1 g0-charts --m15-bid BID --m15-ask ASK --sample DIR\g0_sample.csv` draws every row of the G0 sample
+from the same M15 files into one page, `DIR\g0_charts.html` (`--out FILE.html` for another name; an existing
+page is replaced only with `--force`; `--news` marks the blackout windows, default the packaged US macro
+calendar: if stage 1 read another calendar, pass the same file, or a row it blocks is refused with a message
+naming `--news` and the file stage 1 recorded in signals_report.json; the same for `--restricted` and a
+master_fp cell). Open it in a browser on a desktop screen (1,240 px or wider). The page is self-contained: inline
+CSS and SVG, no script, no form, nothing fetched. It is a viewer and changes no result: the sample and every
+other file beside it are only read, and the command refuses (exit code 2, nothing written) locked paths, bars
+at or after the lock, an --out that is a folder or not an .html name, and a sample row that is not an eligible
+signal of these files in the cell declared in the signals_report.json beside it with the same time, side,
+entry and stop (the check `run` makes, [SI-69]).
+
+Each row gets a title (sample_no, side, signal time in UTC, SGT and server time, a TradingView hint), an M15
+BID candlestick chart from 8 bars before the 20-bar windows to the trigger bar with every element of the rule
+marked and named (H, L, both 20-bar windows, the 50% and 78.6% levels, the first 50% touch and the arming bar,
+the pullback bar and its trigger level, the 8-bar trigger window, the trigger bar, the entry and the stop at
+the chart's prices as in g0_sample.csv [SI-66]), a 1h panel (the last 40 closed 1h bars at the trigger close
+with EMA30, its value 5 bars earlier and the trend in words), a checklist of rules 2, 3, 4, 5, 8, 9, 10 and D1
+with every number in USD/oz, bars or minutes and the code's verdict, and an empty y / n box (the answer goes
+in agree_y_n; the page saves nothing). Every number comes from the engine (`zeno_v1.prepare`, `screen` in the
+declared cell, `chart_prices`, `h1_index_at_m15_close`). Rules 8 (stop width) and 10 (spread) show the stop
+distance R and the spread of the declared cell first, with the engine's verdict there (its reasons; that cell
+decided eligibility), then the chart's (S1 x1.5 adds 0.5 x the spread to a long's entry and a short's stop). Two bars the engine uses but does not record are
+found with its own functions: the bar of L (of H for a short), the latest of the 20 bars before the extreme at
+that price (`indicators.swing_low_index` / `swing_high_index`), and the first bar after the extreme whose wick
+reached the 50% level (to LEVEL_TOL).
+
+Layout (readable at 1,440-1,920 px): no event label's dotted connector passes through another label (a label
+whose box spans another's mark sits in a lane above it); the gap captions sit in a strip at the bottom of the
+plot that no price or mark reaches (marks stay inside the frame); the level labels on the right never touch;
+time-axis labels never touch, show a date where it changes, and the UTC line shows its date wherever it
+differs from the SGT date above it; the 1h panel prints its numbers to 3 decimals, as the checklist does.
+
+No leak: a row's section reads the bars up to its trigger bar, the trigger close and the entry bar's open
+(bid, ask, time) and nothing later, so nothing after the entry bar's open is drawn or written: no high, low or
+close of the entry bar or of a later bar, no exit, P&L, R or outcome. The tests show it two ways: no bar time
+after a row's entry appears in its section, and garbage in place of every later price (the whole page, and
+row by row) leaves each section byte-identical.
+
+| G0 charts | what | function(s) | test(s) (tests\unit\) |
+|---|---|---|---|
+| page | the command, the page, the refusals, the docs | `cli.cmd_zeno_g0_charts`, `cli._g0_charts_target`, `zeno_g0_charts.g0_charts_html`, `page_html`, `section_html` | test_zeno_v1_g0_charts.py::test_end_to_end_one_self_contained_page_and_the_sample_untouched; test_zeno_v1_g0_charts.py::test_news_option_reads_another_calendar_and_says_so; test_zeno_v1_g0_charts.py::test_refusals_locked_paths_lock_rows_overwrite_and_out; test_zeno_v1_g0_charts.py::test_help_and_docs_point_to_g0_charts |
+| no leak | nothing after the entry bar's open | `zeno_g0_charts.annotate`, `m15_svg`, `h1_svg` | test_zeno_v1_g0_charts.py::test_no_bar_time_after_the_entry_is_drawn_or_written; test_zeno_v1_g0_charts.py::test_garbage_after_the_latest_entry_changes_no_section; test_zeno_v1_g0_charts.py::test_each_section_reads_nothing_after_its_own_entry_bar_open |
+| rules 8, 10 | the declared cell's R and spread, and the engine's verdict there | `zeno_g0_charts.checklist_rows` | test_zeno_v1_g0_charts.py::test_rules_8_and_10_show_and_judge_the_declared_cell; test_zeno_v1_g0_charts.py::test_rule_8_and_10_lines_show_the_declared_cells_numbers_on_every_row |
+| layout | labels, connectors, gap captions and time axes apart; one precision | `zeno_g0_charts.m15_svg`, `h1_svg`, `_event_lanes`, `_gap_rows`, `_axis_labels` | test_zeno_v1_g0_charts.py::test_event_label_connectors_cross_no_other_label; test_zeno_v1_g0_charts.py::test_time_axis_labels_apart_and_on_the_right_day; test_zeno_v1_g0_charts.py::test_gap_captions_clear_of_every_mark_and_line; test_zeno_v1_g0_charts.py::test_right_level_labels_do_not_overlap; test_zeno_v1_g0_charts.py::test_h1_panel_numbers_read_as_in_the_checklist |
+| inputs | non-ASCII and HTML-special paths; a sample from another calendar | `cli.cmd_zeno_g0_charts`, `cli._g0_check_sample`, `cli._g0_other_calendars` | test_zeno_v1_g0_charts.py::test_paths_with_non_ascii_and_html_special_characters; test_zeno_v1_g0_charts.py::test_a_sample_from_another_calendar_names_the_option |
+| values | the engine's numbers, known answers, the long/short mirror | `zeno_g0_charts.annotate`, `trigger_rows`, `checklist_rows`, `trend_words`, `zeno_report.g0_row_key` | test_zeno_v1_g0_charts.py::test_drawn_values_equal_the_sample_signals_csv_and_the_engine; test_zeno_v1_g0_charts.py::test_known_answers_on_the_canonical_long_and_short; test_zeno_v1_g0_charts.py::test_a_short_is_the_mirror_of_a_long |
