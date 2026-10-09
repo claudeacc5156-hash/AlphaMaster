@@ -1,0 +1,479 @@
+event,date_et,time_et,utc_offset_ny,datetime_utc,kind,basis,source_list,cross_check,note
+NFP,2015-01-09,08:30,-0500,2015-01-09T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Dec 2014 Employment Situation; BLS archive empsit_01092015.htm (Fri); embargo line verified on release page
+PPI,2015-01-15,08:30,-0500,2015-01-15T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,"Dec 2014 PPI; embargo line verified on release page: 8:30 a.m. (EST) Thursday, January 15, 2015"
+CPI,2015-01-16,08:30,-0500,2015-01-16T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Dec 2014 CPI (cpi_01162015.htm)
+FOMC,2015-01-28,14:00,-0500,2015-01-28T19:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jan 27-28 meeting; monetary20150128a
+NFP,2015-02-06,08:30,-0500,2015-02-06T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jan 2015 Employment Situation; BLS archive empsit_02062015.htm (Fri)
+PPI,2015-02-18,08:30,-0500,2015-02-18T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jan 2015 PPI
+CPI,2015-02-26,08:30,-0500,2015-02-26T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jan 2015 CPI (cpi_02262015.htm)
+NFP,2015-03-06,08:30,-0500,2015-03-06T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Feb 2015 Employment Situation; BLS archive empsit_03062015.htm (Fri)
+PPI,2015-03-13,08:30,-0400,2015-03-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Feb 2015 PPI
+FOMC,2015-03-18,14:00,-0400,2015-03-18T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Mar 17-18 meeting; SEP + press conference
+CPI,2015-03-24,08:30,-0400,2015-03-24T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Feb 2015 CPI (cpi_03242015.htm)
+NFP,2015-04-03,08:30,-0400,2015-04-03T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Mar 2015 Employment Situation; BLS archive empsit_04032015.htm (Fri)
+PPI,2015-04-14,08:30,-0400,2015-04-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Mar 2015 PPI
+CPI,2015-04-17,08:30,-0400,2015-04-17T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Mar 2015 CPI (cpi_04172015.htm)
+FOMC,2015-04-29,14:00,-0400,2015-04-29T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Apr 28-29 meeting
+NFP,2015-05-08,08:30,-0400,2015-05-08T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Apr 2015 Employment Situation; BLS archive empsit_05082015.htm (Fri)
+PPI,2015-05-14,08:30,-0400,2015-05-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Apr 2015 PPI
+CPI,2015-05-22,08:30,-0400,2015-05-22T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Apr 2015 CPI (cpi_05222015.htm)
+NFP,2015-06-05,08:30,-0400,2015-06-05T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,May 2015 Employment Situation; BLS archive empsit_06052015.htm (Fri)
+PPI,2015-06-12,08:30,-0400,2015-06-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,May 2015 PPI
+FOMC,2015-06-17,14:00,-0400,2015-06-17T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jun 16-17 meeting; SEP + press conference
+CPI,2015-06-18,08:30,-0400,2015-06-18T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,May 2015 CPI (cpi_06182015.htm)
+NFP,2015-07-02,08:30,-0400,2015-07-02T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jun 2015 Employment Situation; BLS archive empsit_07022015.htm (Thu)
+PPI,2015-07-15,08:30,-0400,2015-07-15T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jun 2015 PPI
+CPI,2015-07-17,08:30,-0400,2015-07-17T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jun 2015 CPI (cpi_07172015.htm)
+FOMC,2015-07-29,14:00,-0400,2015-07-29T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jul 28-29 meeting
+NFP,2015-08-07,08:30,-0400,2015-08-07T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jul 2015 Employment Situation; BLS archive empsit_08072015.htm (Fri)
+PPI,2015-08-14,08:30,-0400,2015-08-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jul 2015 PPI
+CPI,2015-08-19,08:30,-0400,2015-08-19T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jul 2015 CPI (cpi_08192015.htm)
+NFP,2015-09-04,08:30,-0400,2015-09-04T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Aug 2015 Employment Situation; BLS archive empsit_09042015.htm (Fri)
+PPI,2015-09-11,08:30,-0400,2015-09-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Aug 2015 PPI
+CPI,2015-09-16,08:30,-0400,2015-09-16T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Aug 2015 CPI (cpi_09162015.htm)
+FOMC,2015-09-17,14:00,-0400,2015-09-17T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Sep 16-17 meeting; SEP + press conference
+NFP,2015-10-02,08:30,-0400,2015-10-02T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Sep 2015 Employment Situation; BLS archive empsit_10022015.htm (Fri)
+PPI,2015-10-14,08:30,-0400,2015-10-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Sep 2015 PPI
+CPI,2015-10-15,08:30,-0400,2015-10-15T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Sep 2015 CPI (cpi_10152015.htm)
+FOMC,2015-10-28,14:00,-0400,2015-10-28T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Oct 27-28 meeting
+NFP,2015-11-06,08:30,-0500,2015-11-06T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Oct 2015 Employment Situation; BLS archive empsit_11062015.htm (Fri)
+PPI,2015-11-13,08:30,-0500,2015-11-13T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Oct 2015 PPI
+CPI,2015-11-17,08:30,-0500,2015-11-17T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Oct 2015 CPI (cpi_11172015.htm)
+NFP,2015-12-04,08:30,-0500,2015-12-04T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Nov 2015 Employment Situation; BLS archive empsit_12042015.htm (Fri)
+PPI,2015-12-11,08:30,-0500,2015-12-11T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Nov 2015 PPI
+CPI,2015-12-15,08:30,-0500,2015-12-15T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Nov 2015 CPI (cpi_12152015.htm)
+FOMC,2015-12-16,14:00,-0500,2015-12-16T19:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Dec 15-16 meeting; SEP + press conference
+NFP,2016-01-08,08:30,-0500,2016-01-08T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Dec 2015 Employment Situation; BLS archive empsit_01082016.htm (Fri)
+PPI,2016-01-15,08:30,-0500,2016-01-15T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Dec 2015 PPI
+CPI,2016-01-20,08:30,-0500,2016-01-20T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Dec 2015 CPI (cpi_01202016.htm)
+FOMC,2016-01-27,14:00,-0500,2016-01-27T19:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jan 26-27 meeting; press release confirms 2:00 p.m. EST
+NFP,2016-02-05,08:30,-0500,2016-02-05T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jan 2016 Employment Situation; BLS archive empsit_02052016.htm (Fri)
+PPI,2016-02-17,08:30,-0500,2016-02-17T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jan 2016 PPI
+CPI,2016-02-19,08:30,-0500,2016-02-19T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jan 2016 CPI (cpi_02192016.htm)
+NFP,2016-03-04,08:30,-0500,2016-03-04T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Feb 2016 Employment Situation; BLS archive empsit_03042016.htm (Fri)
+PPI,2016-03-15,08:30,-0400,2016-03-15T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Feb 2016 PPI
+CPI,2016-03-16,08:30,-0400,2016-03-16T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Feb 2016 CPI (cpi_03162016.htm)
+FOMC,2016-03-16,14:00,-0400,2016-03-16T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Mar 15-16 meeting
+NFP,2016-04-01,08:30,-0400,2016-04-01T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Mar 2016 Employment Situation; BLS archive empsit_04012016.htm (Fri)
+PPI,2016-04-13,08:30,-0400,2016-04-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Mar 2016 PPI
+CPI,2016-04-14,08:30,-0400,2016-04-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Mar 2016 CPI (cpi_04142016.htm)
+FOMC,2016-04-27,14:00,-0400,2016-04-27T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Apr 26-27 meeting
+NFP,2016-05-06,08:30,-0400,2016-05-06T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Apr 2016 Employment Situation; BLS archive empsit_05062016.htm (Fri)
+PPI,2016-05-13,08:30,-0400,2016-05-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Apr 2016 PPI
+CPI,2016-05-17,08:30,-0400,2016-05-17T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Apr 2016 CPI (cpi_05172016.htm)
+NFP,2016-06-03,08:30,-0400,2016-06-03T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,May 2016 Employment Situation; BLS archive empsit_06032016.htm (Fri)
+PPI,2016-06-15,08:30,-0400,2016-06-15T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,May 2016 PPI
+FOMC,2016-06-15,14:00,-0400,2016-06-15T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jun 14-15 meeting
+CPI,2016-06-16,08:30,-0400,2016-06-16T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,May 2016 CPI (cpi_06162016.htm)
+NFP,2016-07-08,08:30,-0400,2016-07-08T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jun 2016 Employment Situation; BLS archive empsit_07082016.htm (Fri)
+PPI,2016-07-14,08:30,-0400,2016-07-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jun 2016 PPI
+CPI,2016-07-15,08:30,-0400,2016-07-15T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jun 2016 CPI (cpi_07152016.htm)
+FOMC,2016-07-27,14:00,-0400,2016-07-27T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jul 26-27 meeting
+NFP,2016-08-05,08:30,-0400,2016-08-05T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jul 2016 Employment Situation; BLS archive empsit_08052016.htm (Fri)
+PPI,2016-08-12,08:30,-0400,2016-08-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jul 2016 PPI
+CPI,2016-08-16,08:30,-0400,2016-08-16T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jul 2016 CPI (cpi_08162016.htm)
+NFP,2016-09-02,08:30,-0400,2016-09-02T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Aug 2016 Employment Situation; BLS archive empsit_09022016.htm (Fri)
+PPI,2016-09-15,08:30,-0400,2016-09-15T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Aug 2016 PPI
+CPI,2016-09-16,08:30,-0400,2016-09-16T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Aug 2016 CPI (cpi_09162016.htm)
+FOMC,2016-09-21,14:00,-0400,2016-09-21T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Sep 20-21 meeting
+NFP,2016-10-07,08:30,-0400,2016-10-07T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Sep 2016 Employment Situation; BLS archive empsit_10072016.htm (Fri)
+PPI,2016-10-14,08:30,-0400,2016-10-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Sep 2016 PPI
+CPI,2016-10-18,08:30,-0400,2016-10-18T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Sep 2016 CPI (cpi_10182016.htm)
+FOMC,2016-11-02,14:00,-0400,2016-11-02T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Nov 1-2 meeting
+NFP,2016-11-04,08:30,-0400,2016-11-04T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Oct 2016 Employment Situation; BLS archive empsit_11042016.htm (Fri)
+PPI,2016-11-16,08:30,-0500,2016-11-16T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Oct 2016 PPI
+CPI,2016-11-17,08:30,-0500,2016-11-17T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Oct 2016 CPI (cpi_11172016.htm)
+NFP,2016-12-02,08:30,-0500,2016-12-02T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Nov 2016 Employment Situation; BLS archive empsit_12022016.htm (Fri)
+PPI,2016-12-14,08:30,-0500,2016-12-14T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Nov 2016 PPI
+FOMC,2016-12-14,14:00,-0500,2016-12-14T19:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Dec 13-14 meeting
+CPI,2016-12-15,08:30,-0500,2016-12-15T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Nov 2016 CPI (cpi_12152016.htm)
+NFP,2017-01-06,08:30,-0500,2017-01-06T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Dec 2016 Employment Situation; BLS archive empsit_01062017.htm (Fri)
+PPI,2017-01-13,08:30,-0500,2017-01-13T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Dec 2016 PPI
+CPI,2017-01-18,08:30,-0500,2017-01-18T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Dec 2016 CPI (cpi_01182017.htm)
+FOMC,2017-02-01,14:00,-0500,2017-02-01T19:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jan 31-Feb 1 meeting; press release confirms 2:00 p.m. EST
+NFP,2017-02-03,08:30,-0500,2017-02-03T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jan 2017 Employment Situation; BLS archive empsit_02032017.htm (Fri)
+PPI,2017-02-14,08:30,-0500,2017-02-14T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jan 2017 PPI
+CPI,2017-02-15,08:30,-0500,2017-02-15T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jan 2017 CPI (cpi_02152017.htm)
+NFP,2017-03-10,08:30,-0500,2017-03-10T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Feb 2017 Employment Situation; BLS archive empsit_03102017.htm (Fri)
+PPI,2017-03-14,08:30,-0400,2017-03-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Feb 2017 PPI
+CPI,2017-03-15,08:30,-0400,2017-03-15T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Feb 2017 CPI (cpi_03152017.htm)
+FOMC,2017-03-15,14:00,-0400,2017-03-15T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Mar 14-15 meeting
+NFP,2017-04-07,08:30,-0400,2017-04-07T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Mar 2017 Employment Situation; BLS archive empsit_04072017.htm (Fri)
+PPI,2017-04-13,08:30,-0400,2017-04-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Mar 2017 PPI
+CPI,2017-04-14,08:30,-0400,2017-04-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Mar 2017 CPI (cpi_04142017.htm)
+FOMC,2017-05-03,14:00,-0400,2017-05-03T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,May 2-3 meeting
+NFP,2017-05-05,08:30,-0400,2017-05-05T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Apr 2017 Employment Situation; BLS archive empsit_05052017.htm (Fri)
+PPI,2017-05-11,08:30,-0400,2017-05-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Apr 2017 PPI
+CPI,2017-05-12,08:30,-0400,2017-05-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Apr 2017 CPI (cpi_05122017.htm)
+NFP,2017-06-02,08:30,-0400,2017-06-02T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,May 2017 Employment Situation; BLS archive empsit_06022017.htm (Fri)
+PPI,2017-06-13,08:30,-0400,2017-06-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,May 2017 PPI
+CPI,2017-06-14,08:30,-0400,2017-06-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,May 2017 CPI (cpi_06142017.htm)
+FOMC,2017-06-14,14:00,-0400,2017-06-14T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jun 13-14 meeting
+NFP,2017-07-07,08:30,-0400,2017-07-07T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jun 2017 Employment Situation; BLS archive empsit_07072017.htm (Fri)
+PPI,2017-07-13,08:30,-0400,2017-07-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jun 2017 PPI
+CPI,2017-07-14,08:30,-0400,2017-07-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jun 2017 CPI (cpi_07142017.htm)
+FOMC,2017-07-26,14:00,-0400,2017-07-26T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jul 25-26 meeting
+NFP,2017-08-04,08:30,-0400,2017-08-04T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jul 2017 Employment Situation; BLS archive empsit_08042017.htm (Fri)
+PPI,2017-08-10,08:30,-0400,2017-08-10T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jul 2017 PPI
+CPI,2017-08-11,08:30,-0400,2017-08-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jul 2017 CPI (cpi_08112017.htm)
+NFP,2017-09-01,08:30,-0400,2017-09-01T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Aug 2017 Employment Situation; BLS archive empsit_09012017.htm (Fri)
+PPI,2017-09-13,08:30,-0400,2017-09-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Aug 2017 PPI
+CPI,2017-09-14,08:30,-0400,2017-09-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Aug 2017 CPI (cpi_09142017.htm)
+FOMC,2017-09-20,14:00,-0400,2017-09-20T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Sep 19-20 meeting
+NFP,2017-10-06,08:30,-0400,2017-10-06T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Sep 2017 Employment Situation; BLS archive empsit_10062017.htm (Fri)
+PPI,2017-10-12,08:30,-0400,2017-10-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Sep 2017 PPI
+CPI,2017-10-13,08:30,-0400,2017-10-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Sep 2017 CPI (cpi_10132017.htm)
+FOMC,2017-11-01,14:00,-0400,2017-11-01T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Oct 31-Nov 1 meeting
+NFP,2017-11-03,08:30,-0400,2017-11-03T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Oct 2017 Employment Situation; BLS archive empsit_11032017.htm (Fri)
+PPI,2017-11-14,08:30,-0500,2017-11-14T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Oct 2017 PPI
+CPI,2017-11-15,08:30,-0500,2017-11-15T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Oct 2017 CPI (cpi_11152017.htm)
+NFP,2017-12-08,08:30,-0500,2017-12-08T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Nov 2017 Employment Situation; BLS archive empsit_12082017.htm (Fri)
+PPI,2017-12-12,08:30,-0500,2017-12-12T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Nov 2017 PPI
+CPI,2017-12-13,08:30,-0500,2017-12-13T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Nov 2017 CPI (cpi_12132017.htm)
+FOMC,2017-12-13,14:00,-0500,2017-12-13T19:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Dec 12-13 meeting
+NFP,2018-01-05,08:30,-0500,2018-01-05T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Dec 2017 Employment Situation; BLS archive empsit_01052018.htm (Fri)
+PPI,2018-01-11,08:30,-0500,2018-01-11T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Dec 2017 PPI
+CPI,2018-01-12,08:30,-0500,2018-01-12T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Dec 2017 CPI (cpi_01122018.htm)
+FOMC,2018-01-31,14:00,-0500,2018-01-31T19:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jan 30-31 meeting
+NFP,2018-02-02,08:30,-0500,2018-02-02T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jan 2018 Employment Situation; BLS archive empsit_02022018.htm (Fri)
+CPI,2018-02-14,08:30,-0500,2018-02-14T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jan 2018 CPI (cpi_02142018.htm)
+PPI,2018-02-15,08:30,-0500,2018-02-15T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jan 2018 PPI
+NFP,2018-03-09,08:30,-0500,2018-03-09T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Feb 2018 Employment Situation; BLS archive empsit_03092018.htm (Fri)
+CPI,2018-03-13,08:30,-0400,2018-03-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Feb 2018 CPI (cpi_03132018.htm)
+PPI,2018-03-14,08:30,-0400,2018-03-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Feb 2018 PPI
+FOMC,2018-03-21,14:00,-0400,2018-03-21T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Mar 20-21 meeting
+NFP,2018-04-06,08:30,-0400,2018-04-06T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Mar 2018 Employment Situation; BLS archive empsit_04062018.htm (Fri)
+PPI,2018-04-10,08:30,-0400,2018-04-10T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Mar 2018 PPI
+CPI,2018-04-11,08:30,-0400,2018-04-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Mar 2018 CPI (cpi_04112018.htm)
+FOMC,2018-05-02,14:00,-0400,2018-05-02T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,May 1-2 meeting
+NFP,2018-05-04,08:30,-0400,2018-05-04T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Apr 2018 Employment Situation; BLS archive empsit_05042018.htm (Fri)
+PPI,2018-05-09,08:30,-0400,2018-05-09T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Apr 2018 PPI
+CPI,2018-05-10,08:30,-0400,2018-05-10T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Apr 2018 CPI (cpi_05102018.htm)
+NFP,2018-06-01,08:30,-0400,2018-06-01T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,May 2018 Employment Situation; BLS archive empsit_06012018.htm (Fri)
+CPI,2018-06-12,08:30,-0400,2018-06-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,May 2018 CPI (cpi_06122018.htm)
+PPI,2018-06-13,08:30,-0400,2018-06-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,May 2018 PPI
+FOMC,2018-06-13,14:00,-0400,2018-06-13T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jun 12-13 meeting
+NFP,2018-07-06,08:30,-0400,2018-07-06T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jun 2018 Employment Situation; BLS archive empsit_07062018.htm (Fri)
+PPI,2018-07-11,08:30,-0400,2018-07-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jun 2018 PPI
+CPI,2018-07-12,08:30,-0400,2018-07-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jun 2018 CPI (cpi_07122018.htm)
+FOMC,2018-08-01,14:00,-0400,2018-08-01T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jul 31-Aug 1 meeting
+NFP,2018-08-03,08:30,-0400,2018-08-03T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jul 2018 Employment Situation; BLS archive empsit_08032018.htm (Fri)
+PPI,2018-08-09,08:30,-0400,2018-08-09T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jul 2018 PPI
+CPI,2018-08-10,08:30,-0400,2018-08-10T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jul 2018 CPI (cpi_08102018.htm)
+NFP,2018-09-07,08:30,-0400,2018-09-07T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Aug 2018 Employment Situation; BLS archive empsit_09072018.htm (Fri)
+PPI,2018-09-12,08:30,-0400,2018-09-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Aug 2018 PPI
+CPI,2018-09-13,08:30,-0400,2018-09-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Aug 2018 CPI (cpi_09132018.htm)
+FOMC,2018-09-26,14:00,-0400,2018-09-26T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Sep 25-26 meeting
+NFP,2018-10-05,08:30,-0400,2018-10-05T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Sep 2018 Employment Situation; BLS archive empsit_10052018.htm (Fri)
+PPI,2018-10-10,08:30,-0400,2018-10-10T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Sep 2018 PPI
+CPI,2018-10-11,08:30,-0400,2018-10-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Sep 2018 CPI (cpi_10112018.htm)
+NFP,2018-11-02,08:30,-0400,2018-11-02T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Oct 2018 Employment Situation; BLS archive empsit_11022018.htm (Fri)
+FOMC,2018-11-08,14:00,-0500,2018-11-08T19:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Nov 7-8 meeting (Thursday release)
+PPI,2018-11-09,08:30,-0500,2018-11-09T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Oct 2018 PPI
+CPI,2018-11-14,08:30,-0500,2018-11-14T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Oct 2018 CPI (cpi_11142018.htm)
+NFP,2018-12-07,08:30,-0500,2018-12-07T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Nov 2018 Employment Situation; BLS archive empsit_12072018.htm (Fri)
+PPI,2018-12-11,08:30,-0500,2018-12-11T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Nov 2018 PPI
+CPI,2018-12-12,08:30,-0500,2018-12-12T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Nov 2018 CPI (cpi_12122018.htm)
+FOMC,2018-12-19,14:00,-0500,2018-12-19T19:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Dec 18-19 meeting; press release confirms 2:00 p.m. EST
+NFP,2019-01-04,08:30,-0500,2019-01-04T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Dec 2018 Employment Situation; BLS archive empsit_01042019.htm (Fri)
+CPI,2019-01-11,08:30,-0500,2019-01-11T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Dec 2018 CPI (cpi_01112019.htm)
+PPI,2019-01-15,08:30,-0500,2019-01-15T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Dec 2018 PPI
+FOMC,2019-01-30,14:00,-0500,2019-01-30T19:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jan 29-30 meeting
+NFP,2019-02-01,08:30,-0500,2019-02-01T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jan 2019 Employment Situation; BLS archive empsit_02012019.htm (Fri)
+CPI,2019-02-13,08:30,-0500,2019-02-13T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jan 2019 CPI (cpi_02132019.htm)
+PPI,2019-02-14,08:30,-0500,2019-02-14T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jan 2019 PPI
+NFP,2019-03-08,08:30,-0500,2019-03-08T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Feb 2019 Employment Situation; BLS archive empsit_03082019.htm (Fri)
+CPI,2019-03-12,08:30,-0400,2019-03-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Feb 2019 CPI (cpi_03122019.htm)
+PPI,2019-03-13,08:30,-0400,2019-03-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Feb 2019 PPI
+FOMC,2019-03-20,14:00,-0400,2019-03-20T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Mar 19-20 meeting
+NFP,2019-04-05,08:30,-0400,2019-04-05T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Mar 2019 Employment Situation; BLS archive empsit_04052019.htm (Fri)
+CPI,2019-04-10,08:30,-0400,2019-04-10T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Mar 2019 CPI (cpi_04102019.htm)
+PPI,2019-04-11,08:30,-0400,2019-04-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Mar 2019 PPI
+FOMC,2019-05-01,14:00,-0400,2019-05-01T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Apr 30-May 1 meeting
+NFP,2019-05-03,08:30,-0400,2019-05-03T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Apr 2019 Employment Situation; BLS archive empsit_05032019.htm (Fri)
+PPI,2019-05-09,08:30,-0400,2019-05-09T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Apr 2019 PPI
+CPI,2019-05-10,08:30,-0400,2019-05-10T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Apr 2019 CPI (cpi_05102019.htm)
+NFP,2019-06-07,08:30,-0400,2019-06-07T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,May 2019 Employment Situation; BLS archive empsit_06072019.htm (Fri)
+PPI,2019-06-11,08:30,-0400,2019-06-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,May 2019 PPI
+CPI,2019-06-12,08:30,-0400,2019-06-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,May 2019 CPI (cpi_06122019.htm)
+FOMC,2019-06-19,14:00,-0400,2019-06-19T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jun 18-19 meeting
+NFP,2019-07-05,08:30,-0400,2019-07-05T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jun 2019 Employment Situation; BLS archive empsit_07052019.htm (Fri)
+CPI,2019-07-11,08:30,-0400,2019-07-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jun 2019 CPI (cpi_07112019.htm)
+PPI,2019-07-12,08:30,-0400,2019-07-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jun 2019 PPI
+FOMC,2019-07-31,14:00,-0400,2019-07-31T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jul 30-31 meeting
+NFP,2019-08-02,08:30,-0400,2019-08-02T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jul 2019 Employment Situation; BLS archive empsit_08022019.htm (Fri)
+PPI,2019-08-09,08:30,-0400,2019-08-09T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jul 2019 PPI
+CPI,2019-08-13,08:30,-0400,2019-08-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jul 2019 CPI (cpi_08132019.htm)
+NFP,2019-09-06,08:30,-0400,2019-09-06T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Aug 2019 Employment Situation; BLS archive empsit_09062019.htm (Fri)
+PPI,2019-09-11,08:30,-0400,2019-09-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Aug 2019 PPI
+CPI,2019-09-12,08:30,-0400,2019-09-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Aug 2019 CPI (cpi_09122019.htm)
+FOMC,2019-09-18,14:00,-0400,2019-09-18T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Sep 17-18 meeting
+NFP,2019-10-04,08:30,-0400,2019-10-04T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Sep 2019 Employment Situation; BLS archive empsit_10042019.htm (Fri)
+PPI,2019-10-08,08:30,-0400,2019-10-08T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Sep 2019 PPI
+CPI,2019-10-10,08:30,-0400,2019-10-10T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Sep 2019 CPI (cpi_10102019.htm)
+FOMC,2019-10-11,11:00,-0400,2019-10-11T15:00Z,unscheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,"Oct 4 unscheduled conference call; 'Statement Regarding Monetary Policy Implementation' (T-bill purchases/repo), approved by notation vote completed Oct 11, released 11:00 a.m. EDT. Not a rate decision; drop if only rate-decision statements are wanted"
+FOMC,2019-10-30,14:00,-0400,2019-10-30T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Oct 29-30 meeting
+NFP,2019-11-01,08:30,-0400,2019-11-01T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Oct 2019 Employment Situation; BLS archive empsit_11012019.htm (Fri)
+CPI,2019-11-13,08:30,-0500,2019-11-13T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Oct 2019 CPI (cpi_11132019.htm)
+PPI,2019-11-14,08:30,-0500,2019-11-14T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Oct 2019 PPI
+NFP,2019-12-06,08:30,-0500,2019-12-06T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Nov 2019 Employment Situation; BLS archive empsit_12062019.htm (Fri)
+CPI,2019-12-11,08:30,-0500,2019-12-11T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Nov 2019 CPI (cpi_12112019.htm)
+FOMC,2019-12-11,14:00,-0500,2019-12-11T19:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Dec 10-11 meeting
+PPI,2019-12-12,08:30,-0500,2019-12-12T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Nov 2019 PPI
+NFP,2020-01-10,08:30,-0500,2020-01-10T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Dec 2019 Employment Situation; BLS archive empsit_01102020.htm (Fri)
+CPI,2020-01-14,08:30,-0500,2020-01-14T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Dec 2019 CPI (cpi_01142020.htm)
+PPI,2020-01-15,08:30,-0500,2020-01-15T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Dec 2019 PPI
+FOMC,2020-01-29,14:00,-0500,2020-01-29T19:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jan 28-29 meeting
+NFP,2020-02-07,08:30,-0500,2020-02-07T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jan 2020 Employment Situation; BLS archive empsit_02072020.htm (Fri)
+CPI,2020-02-13,08:30,-0500,2020-02-13T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jan 2020 CPI (cpi_02132020.htm)
+PPI,2020-02-19,08:30,-0500,2020-02-19T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jan 2020 PPI
+FOMC,2020-03-03,10:00,-0500,2020-03-03T15:00Z,unscheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Mar 2 unscheduled meeting (conference call); 50bp emergency cut; released 10:00 a.m. EST
+NFP,2020-03-06,08:30,-0500,2020-03-06T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Feb 2020 Employment Situation; BLS archive empsit_03062020.htm (Fri)
+CPI,2020-03-11,08:30,-0400,2020-03-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Feb 2020 CPI (cpi_03112020.htm)
+PPI,2020-03-12,08:30,-0400,2020-03-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Feb 2020 PPI
+FOMC,2020-03-15,17:00,-0400,2020-03-15T21:00Z,unscheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Mar 15 (Sunday) unscheduled meeting; 100bp cut to 0-0.25%; released 5:00 p.m. EDT. Scheduled Mar 17-18 meeting was cancelled
+FOMC,2020-03-23,08:00,-0400,2020-03-23T12:00Z,unscheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Mar 23 notation vote with FOMC statement ('Federal Reserve issues FOMC statement'; open-ended Treasury/MBS purchases); released 8:00 a.m. EDT
+NFP,2020-04-03,08:30,-0400,2020-04-03T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Mar 2020 Employment Situation; BLS archive empsit_04032020.htm (Fri)
+PPI,2020-04-09,08:30,-0400,2020-04-09T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Mar 2020 PPI
+CPI,2020-04-10,08:30,-0400,2020-04-10T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Mar 2020 CPI (cpi_04102020.htm)
+FOMC,2020-04-29,14:00,-0400,2020-04-29T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Apr 28-29 meeting; press release confirms 2:00 p.m. EDT
+NFP,2020-05-08,08:30,-0400,2020-05-08T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Apr 2020 Employment Situation; BLS archive empsit_05082020.htm (Fri)
+CPI,2020-05-12,08:30,-0400,2020-05-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Apr 2020 CPI (cpi_05122020.htm)
+PPI,2020-05-13,08:30,-0400,2020-05-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Apr 2020 PPI
+NFP,2020-06-05,08:30,-0400,2020-06-05T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,May 2020 Employment Situation; BLS archive empsit_06052020.htm (Fri)
+CPI,2020-06-10,08:30,-0400,2020-06-10T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,May 2020 CPI (cpi_06102020.htm)
+FOMC,2020-06-10,14:00,-0400,2020-06-10T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jun 9-10 meeting
+PPI,2020-06-11,08:30,-0400,2020-06-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,May 2020 PPI
+NFP,2020-07-02,08:30,-0400,2020-07-02T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jun 2020 Employment Situation; BLS archive empsit_07022020.htm (Thu); embargo line verified on release page
+PPI,2020-07-10,08:30,-0400,2020-07-10T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jun 2020 PPI
+CPI,2020-07-14,08:30,-0400,2020-07-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jun 2020 CPI (cpi_07142020.htm)
+FOMC,2020-07-29,14:00,-0400,2020-07-29T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jul 28-29 meeting
+NFP,2020-08-07,08:30,-0400,2020-08-07T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jul 2020 Employment Situation; BLS archive empsit_08072020.htm (Fri)
+PPI,2020-08-11,08:30,-0400,2020-08-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jul 2020 PPI
+CPI,2020-08-12,08:30,-0400,2020-08-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jul 2020 CPI (cpi_08122020.htm)
+FOMC,2020-08-27,09:10,-0400,2020-08-27T13:10Z,unscheduled,critic-verified,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Statement on Longer-Run Goals and Monetary Policy Strategy (notation vote); federalreserve.gov monetary20200827a.htm 'For release at 9:10 a.m. EDT'
+NFP,2020-09-04,08:30,-0400,2020-09-04T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Aug 2020 Employment Situation; BLS archive empsit_09042020.htm (Fri)
+PPI,2020-09-10,08:30,-0400,2020-09-10T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Aug 2020 PPI
+CPI,2020-09-11,08:30,-0400,2020-09-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Aug 2020 CPI (cpi_09112020.htm)
+FOMC,2020-09-16,14:00,-0400,2020-09-16T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Sep 15-16 meeting
+NFP,2020-10-02,08:30,-0400,2020-10-02T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Sep 2020 Employment Situation; BLS archive empsit_10022020.htm (Fri)
+CPI,2020-10-13,08:30,-0400,2020-10-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Sep 2020 CPI (cpi_10132020.htm)
+PPI,2020-10-14,08:30,-0400,2020-10-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Sep 2020 PPI
+FOMC,2020-11-05,14:00,-0500,2020-11-05T19:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Nov 4-5 meeting (Thursday release)
+NFP,2020-11-06,08:30,-0500,2020-11-06T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Oct 2020 Employment Situation; BLS archive empsit_11062020.htm (Fri)
+CPI,2020-11-12,08:30,-0500,2020-11-12T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Oct 2020 CPI (cpi_11122020.htm)
+PPI,2020-11-13,08:30,-0500,2020-11-13T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Oct 2020 PPI
+NFP,2020-12-04,08:30,-0500,2020-12-04T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Nov 2020 Employment Situation; BLS archive empsit_12042020.htm (Fri)
+CPI,2020-12-10,08:30,-0500,2020-12-10T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Nov 2020 CPI (cpi_12102020.htm)
+PPI,2020-12-11,08:30,-0500,2020-12-11T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Nov 2020 PPI
+FOMC,2020-12-16,14:00,-0500,2020-12-16T19:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Dec 15-16 meeting
+NFP,2021-01-08,08:30,-0500,2021-01-08T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Dec 2020 Employment Situation; BLS archive empsit_01082021.htm (Fri)
+CPI,2021-01-13,08:30,-0500,2021-01-13T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Dec 2020 CPI (cpi_01132021.htm)
+PPI,2021-01-15,08:30,-0500,2021-01-15T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Dec 2020 PPI
+FOMC,2021-01-27,14:00,-0500,2021-01-27T19:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jan 26-27 meeting
+NFP,2021-02-05,08:30,-0500,2021-02-05T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jan 2021 Employment Situation; BLS archive empsit_02052021.htm (Fri)
+CPI,2021-02-10,08:30,-0500,2021-02-10T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jan 2021 CPI (cpi_02102021.htm)
+PPI,2021-02-17,08:30,-0500,2021-02-17T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jan 2021 PPI
+NFP,2021-03-05,08:30,-0500,2021-03-05T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Feb 2021 Employment Situation; BLS archive empsit_03052021.htm (Fri)
+CPI,2021-03-10,08:30,-0500,2021-03-10T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Feb 2021 CPI (cpi_03102021.htm)
+PPI,2021-03-12,08:30,-0500,2021-03-12T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Feb 2021 PPI
+FOMC,2021-03-17,14:00,-0400,2021-03-17T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Mar 16-17 meeting
+NFP,2021-04-02,08:30,-0400,2021-04-02T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Mar 2021 Employment Situation; BLS archive empsit_04022021.htm (Fri)
+PPI,2021-04-09,08:30,-0400,2021-04-09T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Mar 2021 PPI
+CPI,2021-04-13,08:30,-0400,2021-04-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Mar 2021 CPI (cpi_04132021.htm)
+FOMC,2021-04-28,14:00,-0400,2021-04-28T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Apr 27-28 meeting
+NFP,2021-05-07,08:30,-0400,2021-05-07T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Apr 2021 Employment Situation; BLS archive empsit_05072021.htm (Fri)
+CPI,2021-05-12,08:30,-0400,2021-05-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Apr 2021 CPI (cpi_05122021.htm)
+PPI,2021-05-13,08:30,-0400,2021-05-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Apr 2021 PPI
+NFP,2021-06-04,08:30,-0400,2021-06-04T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,May 2021 Employment Situation; BLS archive empsit_06042021.htm (Fri)
+CPI,2021-06-10,08:30,-0400,2021-06-10T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,May 2021 CPI (cpi_06102021.htm)
+PPI,2021-06-15,08:30,-0400,2021-06-15T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,May 2021 PPI
+FOMC,2021-06-16,14:00,-0400,2021-06-16T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jun 15-16 meeting
+NFP,2021-07-02,08:30,-0400,2021-07-02T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jun 2021 Employment Situation; BLS archive empsit_07022021.htm (Fri)
+CPI,2021-07-13,08:30,-0400,2021-07-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jun 2021 CPI (cpi_07132021.htm)
+PPI,2021-07-14,08:30,-0400,2021-07-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jun 2021 PPI
+FOMC,2021-07-28,14:00,-0400,2021-07-28T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jul 27-28 meeting
+NFP,2021-08-06,08:30,-0400,2021-08-06T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jul 2021 Employment Situation; BLS archive empsit_08062021.htm (Fri)
+CPI,2021-08-11,08:30,-0400,2021-08-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jul 2021 CPI (cpi_08112021.htm)
+PPI,2021-08-12,08:30,-0400,2021-08-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jul 2021 PPI
+NFP,2021-09-03,08:30,-0400,2021-09-03T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Aug 2021 Employment Situation; BLS archive empsit_09032021.htm (Fri)
+PPI,2021-09-10,08:30,-0400,2021-09-10T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Aug 2021 PPI
+CPI,2021-09-14,08:30,-0400,2021-09-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Aug 2021 CPI (cpi_09142021.htm)
+FOMC,2021-09-22,14:00,-0400,2021-09-22T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Sep 21-22 meeting
+NFP,2021-10-08,08:30,-0400,2021-10-08T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Sep 2021 Employment Situation; BLS archive empsit_10082021.htm (Fri)
+CPI,2021-10-13,08:30,-0400,2021-10-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Sep 2021 CPI (cpi_10132021.htm)
+PPI,2021-10-14,08:30,-0400,2021-10-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Sep 2021 PPI
+FOMC,2021-11-03,14:00,-0400,2021-11-03T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Nov 2-3 meeting
+NFP,2021-11-05,08:30,-0400,2021-11-05T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Oct 2021 Employment Situation; BLS archive empsit_11052021.htm (Fri)
+PPI,2021-11-09,08:30,-0500,2021-11-09T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Oct 2021 PPI
+CPI,2021-11-10,08:30,-0500,2021-11-10T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Oct 2021 CPI (cpi_11102021.htm)
+NFP,2021-12-03,08:30,-0500,2021-12-03T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Nov 2021 Employment Situation; BLS archive empsit_12032021.htm (Fri)
+CPI,2021-12-10,08:30,-0500,2021-12-10T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Nov 2021 CPI (cpi_12102021.htm)
+PPI,2021-12-14,08:30,-0500,2021-12-14T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Nov 2021 PPI
+FOMC,2021-12-15,14:00,-0500,2021-12-15T19:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Dec 14-15 meeting
+NFP,2022-01-07,08:30,-0500,2022-01-07T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Dec 2021 Employment Situation; BLS archive empsit_01072022.htm (Fri)
+CPI,2022-01-12,08:30,-0500,2022-01-12T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Dec 2021 CPI (cpi_01122022.htm)
+PPI,2022-01-13,08:30,-0500,2022-01-13T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Dec 2021 PPI
+FOMC,2022-01-26,14:00,-0500,2022-01-26T19:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jan 25-26 meeting
+NFP,2022-02-04,08:30,-0500,2022-02-04T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jan 2022 Employment Situation; BLS archive empsit_02042022.htm (Fri)
+CPI,2022-02-10,08:30,-0500,2022-02-10T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jan 2022 CPI (cpi_02102022.htm)
+PPI,2022-02-15,08:30,-0500,2022-02-15T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jan 2022 PPI
+NFP,2022-03-04,08:30,-0500,2022-03-04T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Feb 2022 Employment Situation; BLS archive empsit_03042022.htm (Fri)
+CPI,2022-03-10,08:30,-0500,2022-03-10T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Feb 2022 CPI (cpi_03102022.htm)
+PPI,2022-03-15,08:30,-0400,2022-03-15T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Feb 2022 PPI
+FOMC,2022-03-16,14:00,-0400,2022-03-16T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Mar 15-16 meeting
+NFP,2022-04-01,08:30,-0400,2022-04-01T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Mar 2022 Employment Situation; BLS archive empsit_04012022.htm (Fri)
+CPI,2022-04-12,08:30,-0400,2022-04-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Mar 2022 CPI (cpi_04122022.htm)
+PPI,2022-04-13,08:30,-0400,2022-04-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Mar 2022 PPI
+FOMC,2022-05-04,14:00,-0400,2022-05-04T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,May 3-4 meeting
+NFP,2022-05-06,08:30,-0400,2022-05-06T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Apr 2022 Employment Situation; BLS archive empsit_05062022.htm (Fri)
+CPI,2022-05-11,08:30,-0400,2022-05-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Apr 2022 CPI (cpi_05112022.htm)
+PPI,2022-05-12,08:30,-0400,2022-05-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Apr 2022 PPI
+NFP,2022-06-03,08:30,-0400,2022-06-03T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,May 2022 Employment Situation; BLS archive empsit_06032022.htm (Fri)
+CPI,2022-06-10,08:30,-0400,2022-06-10T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,May 2022 CPI (cpi_06102022.htm)
+PPI,2022-06-14,08:30,-0400,2022-06-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,May 2022 PPI
+FOMC,2022-06-15,14:00,-0400,2022-06-15T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jun 14-15 meeting
+NFP,2022-07-08,08:30,-0400,2022-07-08T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jun 2022 Employment Situation; BLS archive empsit_07082022.htm (Fri)
+CPI,2022-07-13,08:30,-0400,2022-07-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jun 2022 CPI (cpi_07132022.htm)
+PPI,2022-07-14,08:30,-0400,2022-07-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jun 2022 PPI
+FOMC,2022-07-27,14:00,-0400,2022-07-27T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jul 26-27 meeting
+NFP,2022-08-05,08:30,-0400,2022-08-05T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jul 2022 Employment Situation; BLS archive empsit_08052022.htm (Fri)
+CPI,2022-08-10,08:30,-0400,2022-08-10T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jul 2022 CPI (cpi_08102022.htm)
+PPI,2022-08-11,08:30,-0400,2022-08-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jul 2022 PPI
+NFP,2022-09-02,08:30,-0400,2022-09-02T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Aug 2022 Employment Situation; BLS archive empsit_09022022.htm (Fri)
+CPI,2022-09-13,08:30,-0400,2022-09-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Aug 2022 CPI (cpi_09132022.htm)
+PPI,2022-09-14,08:30,-0400,2022-09-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Aug 2022 PPI
+FOMC,2022-09-21,14:00,-0400,2022-09-21T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Sep 20-21 meeting
+NFP,2022-10-07,08:30,-0400,2022-10-07T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Sep 2022 Employment Situation; BLS archive empsit_10072022.htm (Fri)
+PPI,2022-10-12,08:30,-0400,2022-10-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Sep 2022 PPI
+CPI,2022-10-13,08:30,-0400,2022-10-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Sep 2022 CPI (cpi_10132022.htm)
+FOMC,2022-11-02,14:00,-0400,2022-11-02T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Nov 1-2 meeting
+NFP,2022-11-04,08:30,-0400,2022-11-04T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Oct 2022 Employment Situation; BLS archive empsit_11042022.htm (Fri)
+CPI,2022-11-10,08:30,-0500,2022-11-10T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Oct 2022 CPI (cpi_11102022.htm)
+PPI,2022-11-15,08:30,-0500,2022-11-15T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Oct 2022 PPI
+NFP,2022-12-02,08:30,-0500,2022-12-02T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Nov 2022 Employment Situation; BLS archive empsit_12022022.htm (Fri)
+PPI,2022-12-09,08:30,-0500,2022-12-09T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Nov 2022 PPI
+CPI,2022-12-13,08:30,-0500,2022-12-13T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Nov 2022 CPI (cpi_12132022.htm)
+FOMC,2022-12-14,14:00,-0500,2022-12-14T19:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Dec 13-14 meeting
+NFP,2023-01-06,08:30,-0500,2023-01-06T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Dec 2022 Employment Situation; BLS archive empsit_01062023.htm (Fri)
+CPI,2023-01-12,08:30,-0500,2023-01-12T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Dec 2022 CPI (cpi_01122023.htm)
+PPI,2023-01-18,08:30,-0500,2023-01-18T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Dec 2022 PPI
+FOMC,2023-02-01,14:00,-0500,2023-02-01T19:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jan 31-Feb 1 meeting
+NFP,2023-02-03,08:30,-0500,2023-02-03T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jan 2023 Employment Situation; BLS archive empsit_02032023.htm (Fri)
+CPI,2023-02-14,08:30,-0500,2023-02-14T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jan 2023 CPI (cpi_02142023.htm)
+PPI,2023-02-16,08:30,-0500,2023-02-16T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jan 2023 PPI
+NFP,2023-03-10,08:30,-0500,2023-03-10T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Feb 2023 Employment Situation; BLS archive empsit_03102023.htm (Fri)
+CPI,2023-03-14,08:30,-0400,2023-03-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Feb 2023 CPI (cpi_03142023.htm)
+PPI,2023-03-15,08:30,-0400,2023-03-15T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Feb 2023 PPI
+FOMC,2023-03-22,14:00,-0400,2023-03-22T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Mar 21-22 meeting
+NFP,2023-04-07,08:30,-0400,2023-04-07T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Mar 2023 Employment Situation; BLS archive empsit_04072023.htm (Fri)
+CPI,2023-04-12,08:30,-0400,2023-04-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Mar 2023 CPI (cpi_04122023.htm)
+PPI,2023-04-13,08:30,-0400,2023-04-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Mar 2023 PPI
+FOMC,2023-05-03,14:00,-0400,2023-05-03T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,May 2-3 meeting
+NFP,2023-05-05,08:30,-0400,2023-05-05T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Apr 2023 Employment Situation; BLS archive empsit_05052023.htm (Fri)
+CPI,2023-05-10,08:30,-0400,2023-05-10T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Apr 2023 CPI (cpi_05102023.htm)
+PPI,2023-05-11,08:30,-0400,2023-05-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Apr 2023 PPI
+NFP,2023-06-02,08:30,-0400,2023-06-02T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,May 2023 Employment Situation; BLS archive empsit_06022023.htm (Fri)
+CPI,2023-06-13,08:30,-0400,2023-06-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,May 2023 CPI (cpi_06132023.htm)
+PPI,2023-06-14,08:30,-0400,2023-06-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,May 2023 PPI
+FOMC,2023-06-14,14:00,-0400,2023-06-14T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jun 13-14 meeting
+NFP,2023-07-07,08:30,-0400,2023-07-07T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jun 2023 Employment Situation; BLS archive empsit_07072023.htm (Fri)
+CPI,2023-07-12,08:30,-0400,2023-07-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jun 2023 CPI (cpi_07122023.htm)
+PPI,2023-07-13,08:30,-0400,2023-07-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jun 2023 PPI
+FOMC,2023-07-26,14:00,-0400,2023-07-26T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jul 25-26 meeting
+NFP,2023-08-04,08:30,-0400,2023-08-04T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jul 2023 Employment Situation; BLS archive empsit_08042023.htm (Fri)
+CPI,2023-08-10,08:30,-0400,2023-08-10T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jul 2023 CPI (cpi_08102023.htm)
+PPI,2023-08-11,08:30,-0400,2023-08-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jul 2023 PPI
+NFP,2023-09-01,08:30,-0400,2023-09-01T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Aug 2023 Employment Situation; BLS archive empsit_09012023.htm (Fri)
+CPI,2023-09-13,08:30,-0400,2023-09-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Aug 2023 CPI (cpi_09132023.htm)
+PPI,2023-09-14,08:30,-0400,2023-09-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Aug 2023 PPI
+FOMC,2023-09-20,14:00,-0400,2023-09-20T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Sep 19-20 meeting
+NFP,2023-10-06,08:30,-0400,2023-10-06T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Sep 2023 Employment Situation; BLS archive empsit_10062023.htm (Fri)
+PPI,2023-10-11,08:30,-0400,2023-10-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Sep 2023 PPI
+CPI,2023-10-12,08:30,-0400,2023-10-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Sep 2023 CPI (cpi_10122023.htm)
+FOMC,2023-11-01,14:00,-0400,2023-11-01T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Oct 31-Nov 1 meeting
+NFP,2023-11-03,08:30,-0400,2023-11-03T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Oct 2023 Employment Situation; BLS archive empsit_11032023.htm (Fri)
+CPI,2023-11-14,08:30,-0500,2023-11-14T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Oct 2023 CPI (cpi_11142023.htm)
+PPI,2023-11-15,08:30,-0500,2023-11-15T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Oct 2023 PPI
+NFP,2023-12-08,08:30,-0500,2023-12-08T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Nov 2023 Employment Situation; BLS archive empsit_12082023.htm (Fri)
+CPI,2023-12-12,08:30,-0500,2023-12-12T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Nov 2023 CPI (cpi_12122023.htm)
+PPI,2023-12-13,08:30,-0500,2023-12-13T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Nov 2023 PPI
+FOMC,2023-12-13,14:00,-0500,2023-12-13T19:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Dec 12-13 meeting
+NFP,2024-01-05,08:30,-0500,2024-01-05T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Dec 2023 Employment Situation; BLS archive empsit_01052024.htm (Fri)
+CPI,2024-01-11,08:30,-0500,2024-01-11T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Dec 2023 CPI (cpi_01112024.htm)
+PPI,2024-01-12,08:30,-0500,2024-01-12T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Dec 2023 PPI
+FOMC,2024-01-31,14:00,-0500,2024-01-31T19:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jan 30-31 meeting
+NFP,2024-02-02,08:30,-0500,2024-02-02T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jan 2024 Employment Situation; BLS archive empsit_02022024.htm (Fri)
+CPI,2024-02-13,08:30,-0500,2024-02-13T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jan 2024 CPI (cpi_02132024.htm)
+PPI,2024-02-16,08:30,-0500,2024-02-16T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jan 2024 PPI
+NFP,2024-03-08,08:30,-0500,2024-03-08T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Feb 2024 Employment Situation; BLS archive empsit_03082024.htm (Fri)
+CPI,2024-03-12,08:30,-0400,2024-03-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Feb 2024 CPI (cpi_03122024.htm)
+PPI,2024-03-14,08:30,-0400,2024-03-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Feb 2024 PPI
+FOMC,2024-03-20,14:00,-0400,2024-03-20T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Mar 19-20 meeting
+NFP,2024-04-05,08:30,-0400,2024-04-05T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Mar 2024 Employment Situation; BLS archive empsit_04052024.htm (Fri)
+CPI,2024-04-10,08:30,-0400,2024-04-10T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Mar 2024 CPI (cpi_04102024.htm)
+PPI,2024-04-11,08:30,-0400,2024-04-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Mar 2024 PPI
+FOMC,2024-05-01,14:00,-0400,2024-05-01T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Apr 30-May 1 meeting
+NFP,2024-05-03,08:30,-0400,2024-05-03T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Apr 2024 Employment Situation; BLS archive empsit_05032024.htm (Fri)
+PPI,2024-05-14,08:30,-0400,2024-05-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Apr 2024 PPI
+CPI,2024-05-15,08:30,-0400,2024-05-15T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Apr 2024 CPI (cpi_05152024.htm)
+NFP,2024-06-07,08:30,-0400,2024-06-07T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,May 2024 Employment Situation; BLS archive empsit_06072024.htm (Fri)
+CPI,2024-06-12,08:30,-0400,2024-06-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,May 2024 CPI (cpi_06122024.htm)
+FOMC,2024-06-12,14:00,-0400,2024-06-12T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jun 11-12 meeting
+PPI,2024-06-13,08:30,-0400,2024-06-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,May 2024 PPI
+NFP,2024-07-05,08:30,-0400,2024-07-05T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jun 2024 Employment Situation; BLS archive empsit_07052024.htm (Fri)
+CPI,2024-07-11,08:30,-0400,2024-07-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jun 2024 CPI (cpi_07112024.htm)
+PPI,2024-07-12,08:30,-0400,2024-07-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jun 2024 PPI
+FOMC,2024-07-31,14:00,-0400,2024-07-31T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jul 30-31 meeting
+NFP,2024-08-02,08:30,-0400,2024-08-02T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jul 2024 Employment Situation; BLS archive empsit_08022024.htm (Fri)
+PPI,2024-08-13,08:30,-0400,2024-08-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jul 2024 PPI
+CPI,2024-08-14,08:30,-0400,2024-08-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jul 2024 CPI (cpi_08142024.htm)
+NFP,2024-09-06,08:30,-0400,2024-09-06T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Aug 2024 Employment Situation; BLS archive empsit_09062024.htm (Fri)
+CPI,2024-09-11,08:30,-0400,2024-09-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Aug 2024 CPI (cpi_09112024.htm)
+PPI,2024-09-12,08:30,-0400,2024-09-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Aug 2024 PPI
+FOMC,2024-09-18,14:00,-0400,2024-09-18T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Sep 17-18 meeting
+NFP,2024-10-04,08:30,-0400,2024-10-04T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Sep 2024 Employment Situation; BLS archive empsit_10042024.htm (Fri)
+CPI,2024-10-10,08:30,-0400,2024-10-10T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Sep 2024 CPI (cpi_10102024.htm)
+PPI,2024-10-11,08:30,-0400,2024-10-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Sep 2024 PPI
+NFP,2024-11-01,08:30,-0400,2024-11-01T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Oct 2024 Employment Situation; BLS archive empsit_11012024.htm (Fri)
+FOMC,2024-11-07,14:00,-0500,2024-11-07T19:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Nov 6-7 meeting (Thursday release)
+CPI,2024-11-13,08:30,-0500,2024-11-13T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Oct 2024 CPI (cpi_11132024.htm)
+PPI,2024-11-14,08:30,-0500,2024-11-14T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Oct 2024 PPI
+NFP,2024-12-06,08:30,-0500,2024-12-06T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Nov 2024 Employment Situation; BLS archive empsit_12062024.htm (Fri)
+CPI,2024-12-11,08:30,-0500,2024-12-11T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Nov 2024 CPI (cpi_12112024.htm)
+PPI,2024-12-12,08:30,-0500,2024-12-12T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Nov 2024 PPI
+FOMC,2024-12-18,14:00,-0500,2024-12-18T19:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Dec 17-18 meeting
+NFP,2025-01-10,08:30,-0500,2025-01-10T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Dec 2024 Employment Situation; BLS archive empsit_01102025.htm (Fri)
+PPI,2025-01-14,08:30,-0500,2025-01-14T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Dec 2024 PPI
+CPI,2025-01-15,08:30,-0500,2025-01-15T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Dec 2024 CPI (cpi_01152025.htm)
+FOMC,2025-01-29,14:00,-0500,2025-01-29T19:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jan 28-29 meeting
+NFP,2025-02-07,08:30,-0500,2025-02-07T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jan 2025 Employment Situation; BLS archive empsit_02072025.htm (Fri)
+CPI,2025-02-12,08:30,-0500,2025-02-12T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jan 2025 CPI (cpi_02122025.htm)
+PPI,2025-02-13,08:30,-0500,2025-02-13T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jan 2025 PPI
+NFP,2025-03-07,08:30,-0500,2025-03-07T13:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Feb 2025 Employment Situation; BLS archive empsit_03072025.htm (Fri)
+CPI,2025-03-12,08:30,-0400,2025-03-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Feb 2025 CPI (cpi_03122025.htm)
+PPI,2025-03-13,08:30,-0400,2025-03-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Feb 2025 PPI
+FOMC,2025-03-19,14:00,-0400,2025-03-19T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Mar 18-19 meeting
+NFP,2025-04-04,08:30,-0400,2025-04-04T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Mar 2025 Employment Situation; BLS archive empsit_04042025.htm (Fri)
+CPI,2025-04-10,08:30,-0400,2025-04-10T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Mar 2025 CPI (cpi_04102025.htm)
+PPI,2025-04-11,08:30,-0400,2025-04-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Mar 2025 PPI
+NFP,2025-05-02,08:30,-0400,2025-05-02T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Apr 2025 Employment Situation; BLS archive empsit_05022025.htm (Fri)
+FOMC,2025-05-07,14:00,-0400,2025-05-07T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,May 6-7 meeting
+CPI,2025-05-13,08:30,-0400,2025-05-13T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Apr 2025 CPI (cpi_05132025.htm)
+PPI,2025-05-15,08:30,-0400,2025-05-15T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Apr 2025 PPI
+NFP,2025-06-06,08:30,-0400,2025-06-06T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,May 2025 Employment Situation; BLS archive empsit_06062025.htm (Fri)
+CPI,2025-06-11,08:30,-0400,2025-06-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,May 2025 CPI (cpi_06112025.htm)
+PPI,2025-06-12,08:30,-0400,2025-06-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,May 2025 PPI
+FOMC,2025-06-18,14:00,-0400,2025-06-18T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jun 17-18 meeting
+NFP,2025-07-03,08:30,-0400,2025-07-03T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jun 2025 Employment Situation; BLS archive empsit_07032025.htm (Thu); embargo line verified on release page
+CPI,2025-07-15,08:30,-0400,2025-07-15T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jun 2025 CPI (cpi_07152025.htm)
+PPI,2025-07-16,08:30,-0400,2025-07-16T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jun 2025 PPI
+FOMC,2025-07-30,14:00,-0400,2025-07-30T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Jul 29-30 meeting
+NFP,2025-08-01,08:30,-0400,2025-08-01T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Jul 2025 Employment Situation; BLS archive empsit_08012025.htm (Fri)
+CPI,2025-08-12,08:30,-0400,2025-08-12T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,Jul 2025 CPI (cpi_08122025.htm)
+PPI,2025-08-14,08:30,-0400,2025-08-14T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,Jul 2025 PPI
+FOMC,2025-08-22,10:00,-0400,2025-08-22T14:00Z,unscheduled,critic-verified,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Updated Statement on Longer-Run Goals and Monetary Policy Strategy (notation vote); federalreserve.gov monetary20250822a.htm 'For release at 10:00 a.m. EDT'
+NFP,2025-09-05,08:30,-0400,2025-09-05T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/empsit.htm,ALFRED rid=50 + BLS yearly schedules,Aug 2025 Employment Situation; BLS archive empsit_09052025.htm (Fri)
+PPI,2025-09-10,08:30,-0400,2025-09-10T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/ppi.htm,ALFRED rid=46 + BLS yearly schedules,"Aug 2025 PPI; embargo line verified on release page: 8:30 a.m. (ET) Wednesday, September 10, 2025"
+CPI,2025-09-11,08:30,-0400,2025-09-11T12:30Z,scheduled,both,https://www.bls.gov/bls/news-release/cpi.htm,ALFRED rid=10 + BLS yearly schedules,"Aug 2025 CPI (cpi_09112025.htm); embargo line verified on release page: 8:30 a.m. (ET) Thursday, September 11, 2025"
+FOMC,2025-09-17,14:00,-0400,2025-09-17T18:00Z,scheduled,both,https://www.federalreserve.gov/monetarypolicy/fomchistorical<YEAR>.htm (2015-2020); fomccalendars.htm (2021-2025),Fed press releases + openmarket.htm,Sep 16-17 meeting; press release confirms 2:00 p.m. EDT

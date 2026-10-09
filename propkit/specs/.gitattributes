@@ -1,0 +1,6 @@
+# The spec copies are hashed (tests/unit/test_zeno_v1_spec_files.py): never convert their line endings.
+zeno_pullback_v1.json -text
+zeno_pullback_v1.md -text
+zeno_pullback_v1.md.utf8 -text
+SOURCE_HASHES.json -text
+zeno_pullback_v1_addendum_A.md -text

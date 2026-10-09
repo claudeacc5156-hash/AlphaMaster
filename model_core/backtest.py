@@ -25,6 +25,10 @@ from strategy_manager.signal import compute_target_positions_stateless
 from .config import ModelConfig
 
 _H1_PERIODS_PER_YEAR = 6240
+
+# 评分口径版本。IC 对齐与符号感知门控（2026-10）改变了分数尺度，
+# 旧版本保存的 best_score 不可再与新分数比较（否则旧高分永远压住新公式）。
+SCORE_VERSION = 2
 _SORTINO_CLIP        = 20.0
 
 _SECONDS_PER_YEAR = 365.25 * 86400.0
@@ -174,7 +178,8 @@ class MT5Backtest:
     # ──────────────────────────────────────────────────────────────────────
 
     def _ts_ic_stability(self, factors: Tensor, target_ret: Tensor) -> float:
-        """时序 IC 稳定性：每个品种内部 factor[t] 与 ret[t+1] 的相关性均值。
+        """时序 IC 稳定性：每个品种内部 factor[t] 与 target_ret[t]（即 position[t]
+        实际交易的 open[t+1]→open[t+2] 收益）的相关性均值；末端 2 根 0 填充裁掉。
 
         比横截面 IC 更适合 5 品种宇宙（横截面 N=5 统计意义弱）。
 
@@ -187,8 +192,8 @@ class MT5Backtest:
 
         ic_list = []
         for n in range(N):
-            x = factors[n, :-1]
-            y = target_ret[n, 1:]
+            x = factors[n, :-2]
+            y = target_ret[n, :-2]
             xm = x - x.mean()
             ym = y - y.mean()
             sx = (xm ** 2).mean().sqrt()
@@ -290,25 +295,35 @@ class MT5Backtest:
         目标：每 12 bar 一笔（H1 每天约一笔）。
         """
         N, T = position.shape
-        pos_2d = position.tolist()
-        all_runs, total_trades = [], 0
-
-        for n in range(N):
-            runs, cur_len, cur_dir = [], 0, 0
-            for p in pos_2d[n]:
-                pi = int(p)
-                if pi != 0:
-                    if pi == cur_dir:
-                        cur_len += 1
+        if position.is_floating_point() and bool(torch.isfinite(position).all()):
+            # Vectorised form of the per-bar loop below (same counts, no Python loop):
+            # a run starts where int(p) is non-zero and differs from the previous bar's.
+            d = torch.trunc(position)
+            prev = torch.zeros_like(d)
+            prev[:, 1:] = d[:, :-1]
+            total_trades = int(((d != 0) & (d != prev)).sum().item())
+            held_bars = int((d != 0).sum().item())
+        else:
+            # Non-float or non-finite positions: keep the original loop (int() raises on NaN/inf).
+            pos_2d = position.tolist()
+            all_runs, total_trades = [], 0
+            for n in range(N):
+                runs, cur_len, cur_dir = [], 0, 0
+                for p in pos_2d[n]:
+                    pi = int(p)
+                    if pi != 0:
+                        if pi == cur_dir:
+                            cur_len += 1
+                        else:
+                            if cur_len > 0: runs.append(cur_len)
+                            cur_dir, cur_len = pi, 1
                     else:
                         if cur_len > 0: runs.append(cur_len)
-                        cur_dir, cur_len = pi, 1
-                else:
-                    if cur_len > 0: runs.append(cur_len)
-                    cur_dir, cur_len = 0, 0
-            if cur_len > 0: runs.append(cur_len)
-            all_runs.extend(runs)
-            total_trades += len(runs)
+                        cur_dir, cur_len = 0, 0
+                if cur_len > 0: runs.append(cur_len)
+                all_runs.extend(runs)
+                total_trades += len(runs)
+            held_bars = sum(all_runs)
 
         total_bars    = N * T
         target_trades = total_bars / 12.0
@@ -329,8 +344,8 @@ class MT5Backtest:
             freq_score = -2.0
 
         hold_bonus = 0.0
-        if all_runs:
-            avg_hold = sum(all_runs) / len(all_runs)
+        if total_trades:
+            avg_hold = held_bars / total_trades
             hold_bonus = min(0.3, math.log(max(avg_hold, 1.0)) / math.log(30.0) * 0.3)
 
         return float(freq_score + hold_bonus)
@@ -457,7 +472,8 @@ class MT5Backtest:
         else:
             # OOS盈利：轻奖励（最多+20%）
             mult = min(1.2, 1.0 + oos_sor * 0.1)
-        val_score = base_val * mult
+        # 符号感知：负分时 mult<1 必须更负、mult>1 更不负，否则门控会奖励 OOS 亏损
+        val_score = base_val - base_val.abs() * (1.0 - mult)
 
         return train_score, val_score
 
@@ -657,9 +673,9 @@ class MT5Backtest:
         oos_sor = self._sortino(pnl_oos).item()
         if oos_sor <= 0:
             mult = max(0.1, 0.5 + oos_sor * 0.4)
-            score = score * mult
         else:
-            score = score * min(1.2, 1.0 + oos_sor * 0.1)
+            mult = min(1.2, 1.0 + oos_sor * 0.1)
+        score = score - score.abs() * (1.0 - mult)
 
         mean_oos = pnl_oos.mean().item()
         return score, mean_oos

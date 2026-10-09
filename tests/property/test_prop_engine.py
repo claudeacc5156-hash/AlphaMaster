@@ -307,7 +307,7 @@ def test_ic_arithmetic_consistency(N: int, T: int) -> None:
     Property 9: IC Calculation Arithmetic Consistency
 
     _compute_ic now computes time-series IC (per-symbol):
-    for each symbol n, IC_n = Pearson_corr(factor[n, :-1], target_ret[n, 1:])
+    for each symbol n, IC_n = Pearson_corr(factor[n, :-2], target_ret[n, :-2])
     ic_mean = mean across symbols of IC_n values.
 
     **Validates: Requirements T1.3, T1.4**
@@ -320,11 +320,11 @@ def test_ic_arithmetic_consistency(N: int, T: int) -> None:
 
     ic_mean, ic_stability = AlphaEngine._compute_ic(factor, target_ret)
 
-    # Manual time-series IC: per symbol, factor[n,:-1] vs target_ret[n,1:]
+    # Manual time-series IC: per symbol, factor[n,:-2] vs target_ret[n,:-2]
     ic_list = []
     for n in range(N):
-        x = factor[n, :-1]
-        y = target_ret[n, 1:]
+        x = factor[n, :-2]
+        y = target_ret[n, :-2]
         sx = x.std(unbiased=False)
         sy = y.std(unbiased=False)
         if sx.item() < 1e-6 or sy.item() < 1e-6:
@@ -353,3 +353,22 @@ def test_ic_arithmetic_consistency(N: int, T: int) -> None:
             f"ic_stability={ic_stability.item():.6f} != "
             f"expected={expected_stability.item():.6f}"
         )
+
+
+
+def test_ic_alignment_perfect_foresight() -> None:
+    """A factor equal to the return its position trades has IC ~ 1, and the
+    same factor shifted by one bar has IC ~ 0. Catches index misalignment
+    between factor[t] and target_ret[t]."""
+    from model_core.engine import AlphaEngine
+
+    torch.manual_seed(0)
+    T = 500
+    ret = torch.randn(1, T)
+    ret[:, -2:] = 0.0  # tail padding, as in _compute_target_ret
+
+    ic_same, _ = AlphaEngine._compute_ic(ret.clone(), ret)
+    assert ic_same.item() > 0.99
+
+    ic_shifted, _ = AlphaEngine._compute_ic(torch.roll(ret, 1, dims=1), ret)
+    assert abs(ic_shifted.item()) < 0.15

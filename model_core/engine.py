@@ -30,7 +30,7 @@ from tqdm import tqdm
 from .config import ModelConfig
 from .alphagpt import AlphaGPT, NewtonSchulzLowRankDecay, StableRankMonitor
 from .vm import StackVM
-from .backtest import MT5Backtest, estimate_periods_per_year
+from .backtest import SCORE_VERSION, MT5Backtest, estimate_periods_per_year
 from .vocab import FORMULA_VOCAB, VOCAB_VERSION, VocabVersionMismatchError  # task 12.2
 
 # P3：冠军在场时间稳健性校验所需
@@ -441,19 +441,21 @@ class AlphaEngine:
     @staticmethod
     def _compute_ic(factor: torch.Tensor, target_ret: torch.Tensor
                     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """时序 IC（每品种内部 factor[t] vs ret[t+1]）的均值与稳定性。
+        """时序 IC（每品种内部 factor[t] vs target_ret[t]）的均值与稳定性。
 
+        target_ret[t] = log(open[t+2]/open[t+1]) 已是 position[t] 实际交易的
+        前向收益（与 PnL 对齐），故同索引配对；末端 2 根为 0 填充，需裁掉。
         对 5 品种宇宙，时序 IC 比横截面 IC 统计意义更强。
         """
         N, T = factor.shape
-        if T < 2:
+        if T < 3:
             z = torch.zeros(1, device=factor.device)
             return z, z
 
         ic_list = []
         for n in range(N):
-            x  = factor[n, :-1]
-            y  = target_ret[n, 1:]
+            x  = factor[n, :-2]
+            y  = target_ret[n, :-2]
             xm = x - x.mean()
             ym = y - y.mean()
             sx = (xm ** 2).mean().sqrt()
@@ -479,17 +481,21 @@ class AlphaEngine:
     @staticmethod
     def _apply_ic_gate(reward: torch.Tensor, ic_mean) -> torch.Tensor:
         """IC 门控：用 IC 符号而非量值调整 reward，完全规避量纲问题。
-        IC > thresh  → reward × IC_GATE_MULT  (正向预测，奖励)
-        IC < -thresh → reward × IC_NEG_MULT   (反向预测，惩罚)
-        |IC| ≤ thresh→ 不修改                  (噪声区)
+        IC > thresh  → 按 IC_GATE_MULT 奖励  (正向预测)
+        IC < -thresh → 按 IC_NEG_MULT 惩罚   (反向预测)
+        |IC| ≤ thresh→ 不修改                (噪声区)
+        调整量为 |reward| × (m - 1)，正负 reward 下方向一致（不是直接 reward × m）。
         """
         ic_val = ic_mean.item() if isinstance(ic_mean, torch.Tensor) else float(ic_mean)
         t = ModelConfig.IC_GATE_THRESH
         if ic_val > t:
-            return reward * ModelConfig.IC_GATE_MULT
+            m = ModelConfig.IC_GATE_MULT
         elif ic_val < -t:
-            return reward * ModelConfig.IC_NEG_MULT
-        return reward
+            m = ModelConfig.IC_NEG_MULT
+        else:
+            return reward
+        # 符号感知：负 reward 时奖励应变得不那么负、惩罚应更负
+        return reward - abs(reward) * (1.0 - m)
 
 
     # ── Elite pool ────────────────────────────────────────────────────────────
@@ -573,7 +579,9 @@ class AlphaEngine:
         pool_vecs_list = []
         for _, _cnt, pf in self.factor_pool:
             pf_t = pf.detach()
-            if train_slice is not None and pf_t.shape[1] >= factor.shape[1]:
+            if pf_t.shape != factor.shape:
+                continue  # 来自其他数据集（如数据更新后续训），形状不一致，跳过
+            if train_slice is not None:
                 pf_t = pf_t[:, s:e]
             pool_vecs_list.append(pf_t.reshape(-1).float())
         if not pool_vecs_list:
@@ -586,7 +594,7 @@ class AlphaEngine:
         sy   = p_c.norm(dim=1) + 1e-8
         corr = (cov / (sx * sy)).abs()
         if (corr > ModelConfig.CORR_THRESHOLD).any():
-            reward = reward * ModelConfig.CORR_PENALTY
+            reward = reward - abs(reward) * (1.0 - ModelConfig.CORR_PENALTY)
         return reward
 
     def _distribution_stats(self, prev_dist=None):
@@ -1035,19 +1043,6 @@ class AlphaEngine:
             self.training_history.setdefault('batch_uniq_fmls', []).append(uniq_fmls)
             self.training_history.setdefault('batch_fml_div', []).append(fml_div)
 
-            if self.best_formula is not None:
-                from .vocab import VOCAB_VERSION
-                strategy_data = {
-                    "vocab_version": VOCAB_VERSION,
-                    "symbol": self.target_symbol,
-                    "formula": self.best_formula,
-                    "best_score": self.best_score,
-                }
-                save_path = _strategy_file_for_symbol(self.target_symbol)
-                pathlib.Path(save_path).parent.mkdir(parents=True, exist_ok=True)
-                with open(save_path, "w") as fp:
-                    json.dump(strategy_data, fp, indent=2)
-
             self._save_training_history_live()
 
             if (step + 1) % 20 == 0 or (step + 1) == end_step:
@@ -1155,21 +1150,8 @@ class AlphaEngine:
         # ── End of training ──────────────────────────────────────────
         # 仅当跑满最终步时才保存最终 strategy 和历史
         if end_step == ModelConfig.TRAIN_STEPS:
-            if self.best_formula is not None:
-                from .vocab import VOCAB_VERSION
-                strategy_data = {
-                    "vocab_version": VOCAB_VERSION,
-                    "symbol": self.target_symbol,
-                    "formula": self.best_formula,
-                    "best_score": self.best_score,
-                }
-                save_path = _strategy_file_for_symbol(self.target_symbol)
-                pathlib.Path(save_path).parent.mkdir(parents=True, exist_ok=True)
-                # P1-3: 原子写入
-                tmp_path = save_path + ".tmp"
-                with open(tmp_path, "w", encoding="utf-8") as fp:
-                    json.dump(strategy_data, fp, indent=2, ensure_ascii=False)
-                os.replace(tmp_path, save_path)
+            # 与实时保存同一路径：原子写入并保留周期/数据路径等元数据
+            self._save_strategy_live()
 
             sym_tag = f"[{self.target_symbol}] " if self.target_symbol else ""
             self.training_history.pop('_low_entropy_streak', None)
@@ -1192,7 +1174,7 @@ class AlphaEngine:
             print(f"  自适应噪声   : 启用={ModelConfig.ADAPTIVE_NOISE}，范围=[{ModelConfig.NOISE_MIN}, {ModelConfig.NOISE_MAX}]")
             print(f"  部分层重置   : 启用={ModelConfig.PARTIAL_RESET}，层={ModelConfig.PARTIAL_RESET_LAYERS}")
             print(f"  重启次数     : {self._restart_count}")
-            print(f"  策略已保存   : {save_path}")
+            print(f"  策略已保存   : {_strategy_file_for_symbol(self.target_symbol)}")
 
 
     # ── 实时保存最优公式（防进程意外退出丢失）────────────────────────────────
@@ -1248,6 +1230,7 @@ class AlphaEngine:
 
             strategy_data = {
                 "vocab_version": VOCAB_VERSION,
+                "score_version": SCORE_VERSION,
                 "symbol": self.target_symbol,
                 "formula": self.best_formula,
                 "best_score": self.best_score,
@@ -1291,6 +1274,8 @@ class AlphaEngine:
         ckpt = {
             "step":                 step,
             "vocab_version":        VOCAB_VERSION,   # task 12.2: 版本校验所需
+            "timeframe":            getattr(self, "timeframe", None),
+            "score_version":        SCORE_VERSION,
             "model_state_dict":     self.model.state_dict(),
             "optimizer_state_dict": self.opt.state_dict(),
             "best_score":           self.best_score,
@@ -1314,7 +1299,7 @@ class AlphaEngine:
         return path
 
     def load_checkpoint(self, path: str) -> int:
-        ckpt = torch.load(path, map_location=ModelConfig.DEVICE)
+        ckpt = torch.load(path, map_location=ModelConfig.DEVICE, weights_only=True)
 
         # ── Task 12.2：版本校验（R3.7）──────────────────────────────────────
         # 从 checkpoint 读取 vocab_version；若字段缺失（旧版 checkpoint），视为
@@ -1341,6 +1326,15 @@ class AlphaEngine:
         self._restart_count      = ckpt.get("restart_count", 0)
         for k, v in ckpt.get("training_history", {}).items():
             self.training_history[k] = v
+
+        # 旧评分口径的检查点：保留模型权重，但最优分/因子池/精英池按新口径从零累积
+        if ckpt.get("score_version") != SCORE_VERSION:
+            self.best_score = -float('inf')
+            self.best_formula = None
+            self._best_snapshot = None
+            self.factor_pool = []
+            self._elite_pool = []
+            tqdm.write("[检查点] 评分口径已更新，旧最优分数不再作为门槛，最优公式将重新累积")
 
         # 清理 elite pool 中的重复条目（保留各公式的最高分版本）
         self._elite_pool = self._dedup_elite_pool(self._elite_pool)

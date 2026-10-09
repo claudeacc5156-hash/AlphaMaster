@@ -112,6 +112,18 @@ def parse_parquet_filename(path: str | Path) -> tuple[str, str]:
     return symbol, timeframe
 
 
+def _time_to_unix_seconds(time_col: pd.Series) -> pd.Series:
+    """把 datetime64 或毫秒/微秒/纳秒时间戳统一为 Unix 秒（int64）；已是秒的原样返回。"""
+    if pd.api.types.is_datetime64_any_dtype(time_col):
+        ts = pd.to_datetime(time_col, utc=True)
+        return (ts - pd.Timestamp(0, tz="UTC")) // pd.Timedelta(seconds=1)
+    if pd.api.types.is_numeric_dtype(time_col) and len(time_col) and time_col.max() > 1e11:
+        mx = time_col.max()
+        div = 1_000_000_000 if mx > 1e17 else 1_000_000 if mx > 1e14 else 1000
+        return time_col // div
+    return time_col
+
+
 def inspect_parquet_file(path: str | Path) -> dict[str, Any]:
     p = Path(path)
     if not p.exists():
@@ -131,8 +143,9 @@ def inspect_parquet_file(path: str | Path) -> dict[str, Any]:
     years = None
     if "time" in df.columns and len(df) > 1:
         try:
-            t_min = float(df["time"].min())
-            t_max = float(df["time"].max())
+            t_sec = _time_to_unix_seconds(df["time"])
+            t_min = float(t_sec.min())
+            t_max = float(t_sec.max())
             if t_max > t_min and t_max > 1_000_000_000:  # 合法的 Unix 时间戳
                 span_seconds = t_max - t_min
                 years = round(span_seconds / (365.25 * 24 * 3600), 2)
@@ -177,6 +190,14 @@ class ParquetDataManager:
 
         sub = df[required].copy().rename(columns={volume_col: "volume"})
 
+        # datetime64 列或毫秒/微秒/纳秒时间戳（如 Dukascopy、pandas 导出）统一转为 Unix 秒，
+        # 否则后续按秒解析时间的特征与回测日期全部错位。
+        orig_time = sub["time"]
+        converted = _time_to_unix_seconds(orig_time)
+        if converted is not orig_time:
+            sub["time"] = converted
+            logger.info(f"[数据] {self.file_path.name} 时间列已统一转换为 Unix 秒。")
+
         # 兼容性修复：某些 A 股 parquet 导出工具把 Unix 秒时间戳误存为
         # "秒/1000"（数值被缩小 1000 倍，导致日期变成 1970 年）。
         # 若最大时间戳 < 1e7（1970-04-27 之前），则视为被除过 1000，乘回。
@@ -188,6 +209,19 @@ class ParquetDataManager:
             )
 
         sub = sub.sort_values("time")
+        # 丢弃 OHLC/时间缺失或价格 ≤ 0 的行（如 resample 产生的周末空 K 线，
+        # 或用 0 填充的空 K 线），否则 target_ret 含 NaN/inf，训练奖励/权重与回测指标全部失效。
+        n_before = len(sub)
+        sub = sub.dropna(subset=["time", "open", "high", "low", "close"])
+        sub = sub[(sub[["open", "high", "low", "close"]] > 0).all(axis=1)]
+        if len(sub) < n_before:
+            logger.warning(
+                f"[数据] {self.file_path.name} 已丢弃 {n_before - len(sub)} 行 OHLC 缺失或非正价格的K线"
+            )
+            if len(sub) < Config.MIN_BARS:
+                raise ValueError(
+                    f"数据不足: 去除空值后仅 {len(sub)} bars（至少需要 {Config.MIN_BARS}）"
+                )
         sub = sub[~sub["time"].duplicated(keep="last")]
 
         rows = {field: sub[field].values for field in ["open", "high", "low", "close", "volume"]}

@@ -25,6 +25,7 @@ from config import Config
 from data_pipeline.parquet_manager import ParquetDataManager, inspect_parquet_file
 from model_core.config import ModelConfig
 from model_core.engine import AlphaEngine
+from model_core.backtest import SCORE_VERSION
 from model_core.vocab import VOCAB_VERSION
 
 
@@ -84,9 +85,16 @@ def train_from_file(data_file: str, *, from_scratch: bool = False) -> AlphaEngin
         ckpt_files = []
     elif ckpt_files:
         latest = ckpt_files[-1]
+        prev_tf = _recorded_timeframe(latest, symbol)
+        if prev_tf and prev_tf != timeframe:
+            print(f"  [错误] {symbol} 现有检查点属于 {prev_tf} 周期，与当前 {timeframe} 不一致，不能续训")
+            print("  请点「重新训练」（--from-scratch）从头训练该周期")
+            return None
         try:
             start_step = engine.load_checkpoint(latest)
             print(f"  [续训] 从 {latest} 恢复，起始步={start_step}")
+            # 检查点每 20 步才写一次；Stop 后 best_*.json 可能含检查点之后的更优公式
+            _seed_best_from_strategy(engine, symbol)
         except Exception as e:
             print(f"  [警告] 检查点加载失败: {e}，将从头开始")
 
@@ -109,6 +117,23 @@ def train_from_file(data_file: str, *, from_scratch: bool = False) -> AlphaEngin
     return engine
 
 
+def _recorded_timeframe(ckpt_path: str, symbol: str) -> str | None:
+    """检查点所属周期；旧检查点无此字段时回退到 best_{symbol}.json 记录的周期。"""
+    try:
+        import torch
+
+        tf = torch.load(ckpt_path, map_location="cpu", weights_only=True).get("timeframe")
+        if tf:
+            return tf
+    except Exception:
+        pass
+    try:
+        path = pathlib.Path("strategies") / f"best_{symbol}.json"
+        return json.loads(path.read_text(encoding="utf-8")).get("timeframe")
+    except Exception:
+        return None
+
+
 def _seed_best_from_strategy(engine: AlphaEngine, symbol: str) -> None:
     """把已有 best_{symbol}.json 当作重新训练的分数下限。"""
     path = pathlib.Path("strategies") / f"best_{symbol}.json"
@@ -123,10 +148,21 @@ def _seed_best_from_strategy(engine: AlphaEngine, symbol: str) -> None:
     score = data.get("best_score")
     if not formula or score is None:
         return
+    old_tf = data.get("timeframe")
+    if old_tf and old_tf != engine.timeframe:
+        print(f"  [策略] 已有策略属于 {old_tf} 周期，不作为 {engine.timeframe} 的分数下限")
+        return
+    if data.get("vocab_version") not in (None, VOCAB_VERSION):
+        return
+    if data.get("score_version") != SCORE_VERSION:
+        print("  [策略] 已有策略按旧评分口径打分，不作为分数下限")
+        return
     try:
+        if float(score) <= float(engine.best_score):
+            return
         engine.best_formula = [int(t) for t in formula]
         engine.best_score = float(score)
-        print(f"  [重新训练] 保留已有最优分数下限={engine.best_score:.4f}，仅更好时才会覆盖策略文件")
+        print(f"  [策略] 保留已有最优分数下限={engine.best_score:.4f}，仅更好时才会覆盖策略文件")
     except (TypeError, ValueError) as e:
         print(f"  [警告] 已有策略无法用作下限: {e}")
 
@@ -134,12 +170,20 @@ def _seed_best_from_strategy(engine: AlphaEngine, symbol: str) -> None:
 def _save_strategy(engine: AlphaEngine, symbol: str, timeframe: str, data_file: str) -> None:
     path = pathlib.Path("strategies") / f"best_{symbol}.json"
     path.parent.mkdir(exist_ok=True)
-    # 若磁盘上已有更高分，不要用更弱结果覆盖
-    if path.exists() and engine.best_formula is not None:
+    if engine.best_formula is None:
+        print("  [策略] 本次训练没有产生有效公式，保留原策略文件")
+        return
+    # 若磁盘上已有更高分（同一周期、同一评分口径），不要用更弱结果覆盖
+    if path.exists():
         try:
             old = json.loads(path.read_text(encoding="utf-8"))
             old_score = old.get("best_score")
-            if old_score is not None and float(old_score) > float(engine.best_score):
+            if (
+                old_score is not None
+                and old.get("timeframe") in (None, timeframe)
+                and old.get("score_version") == SCORE_VERSION
+                and float(old_score) > float(engine.best_score)
+            ):
                 print(
                     f"  [策略] 保留磁盘更优结果 {float(old_score):.4f} "
                     f"> 本次 {float(engine.best_score):.4f}，未覆盖 {path}"
@@ -164,6 +208,7 @@ def _save_strategy(engine: AlphaEngine, symbol: str, timeframe: str, data_file: 
             pass
     data = {
         "vocab_version": VOCAB_VERSION,
+        "score_version": SCORE_VERSION,
         "symbol": symbol,
         "timeframe": timeframe,
         "data_file": str(Path(data_file).resolve()),

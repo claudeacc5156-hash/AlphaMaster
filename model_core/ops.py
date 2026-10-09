@@ -21,6 +21,13 @@ import torch
 
 from .registry import OperatorSpec, Registry
 
+try:  # optional fast path for the EMA recursion (scipy is in requirements.txt)
+    import numpy as _np
+    from scipy.signal import lfilter as _lfilter
+except ImportError:  # pragma: no cover - fall back to the Python loop
+    _np = None
+    _lfilter = None
+
 
 # ── 算子层错误类型（对应 design「错误类型模型」，归为算子层）──────────────
 
@@ -168,11 +175,55 @@ def _ema_simple(x: torch.Tensor, span: int, exact: bool = False) -> torch.Tensor
 
     # ── 统一使用 exact 递推路径（O(N·T) 顺序累积）──────────────────
     # 消除 T < 2*w_full 与 T >= 2*w_full 的路径分叉，保证训练/实盘数值一致
+    fast = _ema_recursion_lfilter(x, alpha)
+    if fast is not None:
+        return fast
+    return _ema_recursion_loop(x, alpha)
+
+
+def _ema_recursion_loop(x: torch.Tensor, alpha: float) -> torch.Tensor:
+    """Reference recursion out[t] = alpha*x[t] + (1-alpha)*out[t-1], out[0] = x[0]."""
     out = torch.zeros_like(x)
     out[:, 0] = x[:, 0]
-    for t in range(1, T):
+    for t in range(1, x.shape[1]):
         out[:, t] = alpha * x[:, t] + (1 - alpha) * out[:, t - 1]
     return out
+
+
+def _ema_recursion_lfilter(x: torch.Tensor, alpha: float) -> torch.Tensor | None:
+    """Same recursion as _ema_recursion_loop, run in C by scipy.signal.lfilter.
+
+    The Python loop costs ~1.5 s per call at T=63k (about a third of a training
+    step when EMA_5/EMA_20 are sampled). lfilter evaluates the identical
+    float32/float64 recursion fl(fl(alpha*x[t]) + fl((1-alpha)*y[t-1])), so the
+    output is bit-identical (see tests/property/test_prop_ops_speed.py). Starting
+    at t=1 with zi = (1-alpha)*x[0] keeps out[0] == x[0] exactly. Returns None
+    (caller falls back to the loop) for other dtypes/devices, without scipy, and
+    for inputs holding +/-inf: lfilter's state update computes inf*0 = NaN where
+    the loop carries the inf forward.
+    """
+    if _lfilter is None:
+        return None
+    if (x.device.type != "cpu" or x.dtype not in (torch.float32, torch.float64)
+            or x.requires_grad or x.is_neg() or x.is_conj()):
+        return None
+    try:
+        xn = x.numpy()
+    except (RuntimeError, TypeError):
+        return None
+    if _np.isinf(xn).any():
+        return None
+    dt = xn.dtype
+    a = _np.asarray(alpha, dtype=dt)
+    b = _np.asarray(1 - alpha, dtype=dt)
+    res = torch.empty_like(x)          # same memory layout as the loop's zeros_like
+    out = res.numpy()
+    out[:, 0] = xn[:, 0]
+    if xn.shape[1] > 1:
+        zi = (b * xn[:, :1]).astype(dt)
+        out[:, 1:], _ = _lfilter(_np.array([a], dtype=dt), _np.array([1, -b], dtype=dt),
+                                 xn[:, 1:], axis=1, zi=zi)
+    return res
 
 
 def _ts_quantile(x: torch.Tensor, d: int) -> torch.Tensor:

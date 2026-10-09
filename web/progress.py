@@ -83,11 +83,12 @@ def _load_checkpoint_meta(path: Path) -> dict[str, Any]:
     if cached and cached[0] == mtime:
         return cached[1]
 
-    ckpt = torch.load(path, map_location="cpu", weights_only=False)
+    ckpt = torch.load(path, map_location="cpu", weights_only=True)
     meta = {
         "step": int(ckpt.get("step", _step_from_name(path))),
         "best_score": ckpt.get("best_score"),
         "best_formula": ckpt.get("best_formula"),
+        "score_version": ckpt.get("score_version"),
         "training_history": ckpt.get("training_history") or {},
     }
     _ckpt_cache[key] = (mtime, meta)

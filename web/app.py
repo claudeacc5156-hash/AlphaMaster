@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 import traceback
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -60,10 +62,37 @@ logger = get_logger()
 app = FastAPI(title="AlphaMaster Training", version="1.1.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origin_regex=r"^https?://(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$",
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 仅允许本机访问。CORS 只限制「读取响应」，挡不住跨站表单 POST（如上传恶意训练包），
+# 也挡不住 DNS 重绑定；因此同时校验 Host 与 Origin。局域网访问可用环境变量
+# ALPHAMASTER_ALLOWED_HOSTS=192.168.1.10,mypc 追加主机名。
+_ALLOWED_HOSTS = {"127.0.0.1", "localhost", "::1"} | {
+    h.strip().lower()
+    for h in os.environ.get("ALPHAMASTER_ALLOWED_HOSTS", "").split(",")
+    if h.strip()
+}
+
+
+def _hostname(value: str) -> str:
+    try:
+        return (urlsplit(value if "//" in value else "//" + value).hostname or "").lower()
+    except ValueError:
+        return ""
+
+
+@app.middleware("http")
+async def _local_only(request: Request, call_next):
+    host = request.headers.get("host", "")
+    origin = request.headers.get("origin")
+    if "@" in host or _hostname(host) not in _ALLOWED_HOSTS or (
+        origin is not None and urlsplit(origin).netloc.lower() != host.lower()
+    ):
+        return JSONResponse({"detail": "仅允许本机访问"}, status_code=403)
+    return await call_next(request)
 
 
 class StartTrainingRequest(BaseModel):
@@ -472,19 +501,16 @@ def api_ai_analyze_training(req: AnalyzeTrainingRequest):
 
 
 @app.post("/api/data-file/browse")
-@app.get("/api/data-file/browse")
 def api_browse_data_file() -> dict[str, Any]:
     return _browse_data_file()
 
 
 @app.post("/api/strategy-file/browse")
-@app.get("/api/strategy-file/browse")
 def api_browse_strategy_file() -> dict[str, Any]:
     return _browse_strategy_file()
 
 
 @app.post("/api/strategy-file/sync-best")
-@app.get("/api/strategy-file/sync-best")
 def api_sync_best_strategy(symbol: str | None = None) -> dict[str, Any]:
     sym = _resolve_train_symbol(symbol)
     if not sym:
@@ -984,6 +1010,17 @@ def _startup_realtime() -> None:
         realtime_manager.load_persisted()
     except Exception as exc:  # noqa: BLE001
         log_error("realtime load_persisted failed", exc)
+
+
+@app.on_event("shutdown")
+def _shutdown_subprocesses() -> None:
+    # Windows 下训练/回测子进程在独立进程组，收不到控制台的 Ctrl+C；
+    # 控制台退出时主动结束它们，避免后台残留进程继续写检查点。
+    for mgr in (training_manager, backtest_manager):
+        try:
+            mgr.stop()
+        except Exception as exc:  # noqa: BLE001
+            log_error("shutdown stop subprocess failed", exc)
 
 
 @app.get("/api/realtime/sources")

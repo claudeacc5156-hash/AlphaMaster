@@ -1,0 +1,3 @@
+# The packaged calendars are hashed (zeno_v1.RESTRICTED_SHA256, tests/unit/test_zeno_v1_news_data.py) and
+# keep their CRLF line endings: never convert them.
+* -text
